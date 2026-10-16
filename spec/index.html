@@ -1,0 +1,3242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Cloud BigQuery | Governança de Autorizações SAP & RLS - Google Cloud e SAP</title>
+  
+  <!-- Google Fonts: Roboto & Google Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500;600&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Mermaid.js for Diagrams -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+  <!-- Prism.js (Light Theme) for SQL Syntax Highlighting -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+  <style>
+    /* ========================================================
+       GOOGLE CLOUD 100% LIGHT THEME DESIGN SYSTEM
+       ======================================================== */
+    :root {
+      /* Google Official Brand Colors */
+      --g-blue: #1a73e8;
+      --g-blue-hover: #1557b0;
+      --g-blue-light: #e8f0fe;
+      --g-blue-border: #d2e3fc;
+      
+      --g-green: #1e8e3e;
+      --g-green-light: #e6f4ea;
+      --g-green-border: #ceead6;
+      
+      --g-yellow: #f9ab00;
+      --g-yellow-light: #fef7e0;
+      --g-yellow-border: #feefc3;
+      
+      --g-red: #d93025;
+      --g-red-light: #fce8e6;
+      --g-red-border: #fad2cf;
+      
+      /* Google Cloud Light UI Grays */
+      --text-primary: #202124;
+      --text-secondary: #5f6368;
+      --text-tertiary: #80868b;
+      --ui-border: #dadce0;
+      --ui-border-subtle: #f1f3f4;
+      --bg-body: #f8f9fa;
+      --bg-surface: #ffffff;
+      --bg-surface-variant: #f1f3f4;
+      
+      /* Typography */
+      --font-google: 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-code: 'Roboto Mono', monospace;
+      
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgba(60,64,67,0.1), 0 1px 3px 1px rgba(60,64,67,0.05);
+      --shadow-md: 0 1px 3px 0 rgba(60,64,67,0.2), 0 4px 8px 3px rgba(60,64,67,0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      background-color: var(--bg-body);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* Top Google Cloud Header (100% Light) */
+    header.gcp-navbar {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 1px solid var(--ui-border);
+      box-shadow: 0 1px 2px rgba(60,64,67,0.06);
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .gcp-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-google);
+      font-weight: 500;
+      font-size: 16px;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+
+    .project-selector {
+      background: var(--bg-surface-variant);
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .project-selector:hover {
+      background: #e8eaed;
+      border-color: #bdc1c6;
+    }
+
+    .breadcrumb {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .breadcrumb .sep {
+      color: var(--text-tertiary);
+    }
+
+    .breadcrumb span.current {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-region {
+      background: var(--g-green-light);
+      color: var(--g-green);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--g-green-border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-region::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: var(--g-green);
+    }
+
+    .client-badge {
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      border: 1px solid var(--g-blue-border);
+      letter-spacing: 0.5px;
+    }
+
+    /* Sub-header / Tabs Bar (100% Light) */
+    .gcp-subheader {
+      background-color: var(--bg-surface);
+      padding: 20px 28px 0 28px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    .page-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .page-title {
+      font-family: var(--font-google);
+      font-size: 22px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-primary);
+    }
+
+    .page-title svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .quick-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* Tabs Bar Google Cloud Style */
+    .tabs-nav {
+      display: flex;
+      gap: 36px;
+    }
+
+    .tab-button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: var(--font-google);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 12px 4px 14px 4px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.15s;
+    }
+
+    .tab-button:hover {
+      color: var(--text-primary);
+    }
+
+    .tab-button.active {
+      color: var(--g-blue);
+      font-weight: 600;
+    }
+
+    .tab-button.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background-color: var(--g-blue);
+      border-radius: 3px 3px 0 0;
+    }
+
+    .tab-counter {
+      background: var(--bg-surface-variant);
+      color: var(--text-secondary);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--ui-border);
+    }
+
+    .tab-button.active .tab-counter {
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+      border-color: var(--g-blue-border);
+    }
+
+    /* Main Container Layout */
+    .main-container {
+      max-width: 1440px;
+      margin: 24px auto;
+      padding: 0 28px 60px 28px;
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      gap: 28px;
+    }
+
+    /* Sidebar / Sticky Table of Contents */
+    .sidebar-toc {
+      position: sticky;
+      top: 76px;
+      height: calc(100vh - 100px);
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .toc-title {
+      font-family: var(--font-google);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ui-border-subtle);
+    }
+
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 7px 10px;
+      border-radius: 6px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 13px;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .toc-link:hover {
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+    }
+
+    .toc-sublist {
+      list-style: none;
+      padding-left: 14px;
+      margin-top: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toc-sublink {
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .toc-sublink:hover {
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+    }
+
+    /* Content Area */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards and Sections (Light Surface) */
+    .gcp-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .gcp-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: #bdc1c6;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--ui-border-subtle);
+    }
+
+    h2.section-title {
+      font-family: var(--font-google);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h2.section-title .step-number {
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+      border: 1px solid var(--g-blue-border);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    h3.sub-title {
+      font-family: var(--font-google);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin: 22px 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    p {
+      margin-bottom: 12px;
+      color: #3c4043;
+    }
+
+    /* Callouts Google Cloud Style (100% Light) */
+    .callout {
+      padding: 14px 18px;
+      border-radius: 6px;
+      margin: 16px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 14px;
+    }
+
+    .callout-info {
+      background-color: var(--g-blue-light);
+      border-left: 4px solid var(--g-blue);
+      color: #174ea6;
+    }
+
+    .callout-tip {
+      background-color: var(--g-green-light);
+      border-left: 4px solid var(--g-green);
+      color: #0d652d;
+    }
+
+    .callout-warning {
+      background-color: var(--g-yellow-light);
+      border-left: 4px solid var(--g-yellow);
+      color: #794d00;
+    }
+
+    .callout-danger {
+      background-color: var(--g-red-light);
+      border-left: 4px solid var(--g-red);
+      color: #a50e0e;
+    }
+
+    .callout-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Tables (100% Light) */
+    .table-responsive {
+      overflow-x: auto;
+      margin: 16px 0;
+      border: 1px solid var(--ui-border);
+      border-radius: 6px;
+    }
+
+    table.gcp-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+      background: var(--bg-surface);
+    }
+
+    table.gcp-table th {
+      background: var(--bg-surface-variant);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-family: var(--font-google);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    table.gcp-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--ui-border-subtle);
+      color: #3c4043;
+      vertical-align: top;
+    }
+
+    table.gcp-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.gcp-table tr:hover td {
+      background-color: #f8f9fa;
+    }
+
+    .code-badge {
+      background: var(--bg-surface-variant);
+      color: var(--text-primary);
+      font-family: var(--font-code);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid var(--ui-border);
+    }
+
+    .badge-mandatory {
+      background: var(--g-red-light);
+      color: var(--g-red);
+      border: 1px solid var(--g-red-border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge-opt {
+      background: var(--g-green-light);
+      color: var(--g-green);
+      border: 1px solid var(--g-green-border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Code Blocks (100% Light GCP Documentation Style) */
+    .code-wrapper {
+      position: relative;
+      margin: 16px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fafafa;
+      border: 1px solid var(--ui-border);
+    }
+
+    .code-header {
+      background: #f1f3f4;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-family: var(--font-code);
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    .code-header .lang-tag {
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--g-blue);
+      letter-spacing: 0.5px;
+    }
+
+    .copy-btn {
+      background: #ffffff;
+      border: 1px solid var(--ui-border);
+      color: var(--text-primary);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: #e8eaed;
+      border-color: #bdc1c6;
+    }
+
+    /* Light Prism Syntax Overrides */
+    pre[class*="language-"] {
+      margin: 0;
+      padding: 16px 18px;
+      border-radius: 0;
+      background: #fafafa !important;
+      font-size: 13px;
+      line-height: 1.55;
+      max-height: 520px;
+      overflow: auto;
+      color: #202124 !important;
+    }
+
+    code[class*="language-"] {
+      font-family: var(--font-code) !important;
+      color: #202124 !important;
+    }
+
+    /* Light Syntax Highlighting Palette */
+    .token.keyword {
+      color: #1a73e8 !important;
+      font-weight: 600;
+    }
+    .token.function {
+      color: #b06000 !important;
+      font-weight: 500;
+    }
+    .token.string {
+      color: #137333 !important;
+    }
+    .token.comment {
+      color: #80868b !important;
+      font-style: italic;
+    }
+    .token.number, .token.boolean {
+      color: #d93025 !important;
+    }
+    .token.operator, .token.punctuation {
+      color: #5f6368 !important;
+    }
+
+    /* Mermaid Diagrams Styling (100% Light) */
+    .mermaid-container {
+      background: var(--bg-surface);
+      padding: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--ui-border);
+      margin: 16px 0;
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;
+    }
+
+    /* Roadmap & Gantt Timeline Google Cloud Style */
+    .roadmap-wrapper {
+      margin-top: 8px;
+    }
+
+    .roadmap-kpi-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface-variant);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+      font-family: var(--font-google);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* Gantt Table */
+    .gantt-chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      overflow-x: auto;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .gantt-table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .gantt-table th, .gantt-table td {
+      border: 1px solid var(--ui-border-subtle);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .gantt-table th.col-task {
+      width: 330px;
+      text-align: left;
+      background: var(--bg-surface-variant);
+      font-weight: 600;
+      color: var(--text-primary);
+      position: sticky;
+      left: 0;
+      z-index: 2;
+    }
+
+    .gantt-table td.col-task {
+      background: var(--bg-surface);
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      font-weight: 500;
+      border-right: 2px solid var(--ui-border);
+    }
+
+    .gantt-table th.month-header {
+      background: #eef2f6;
+      text-align: center;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--ui-border);
+    }
+
+    .gantt-table th.week-header {
+      background: var(--bg-surface-variant);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .gantt-table tr.phase-row {
+      background: #f8f9fa;
+    }
+
+    .gantt-table tr.phase-row td {
+      font-family: var(--font-google);
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 12px;
+    }
+
+    .phase-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .pill-phase1 { background: var(--g-blue-light); color: var(--g-blue); border: 1px solid var(--g-blue-border); }
+    .pill-phase2 { background: var(--g-green-light); color: var(--g-green); border: 1px solid var(--g-green-border); }
+    .pill-phase3 { background: var(--g-yellow-light); color: #b06000; border: 1px solid var(--g-yellow-border); }
+    .pill-phase4 { background: #f3e8fd; color: #7627bb; border: 1px solid #e9d5ff; }
+
+    /* Gantt Bars */
+    .gantt-bar-cell {
+      position: relative;
+      padding: 6px 4px !important;
+      vertical-align: middle;
+    }
+
+    .gantt-bar {
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(60,64,67,0.15);
+      transition: transform 0.15s, box-shadow 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gantt-bar:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(60,64,67,0.2);
+    }
+
+    .bar-blue {
+      background: linear-gradient(90deg, #4285F4, #1A73E8);
+      color: #ffffff;
+    }
+
+    .bar-green {
+      background: linear-gradient(90deg, #34A853, #1E8E3E);
+      color: #ffffff;
+    }
+
+    .bar-amber {
+      background: linear-gradient(90deg, #FBBC04, #F9AB00);
+      color: #202124;
+    }
+
+    .bar-purple {
+      background: linear-gradient(90deg, #A142F4, #8430CE);
+      color: #ffffff;
+    }
+
+    /* Milestone Phase Cards Grid */
+    .milestones-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin-top: 24px;
+    }
+
+    .milestone-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--ui-border);
+      border-radius: 8px;
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .milestone-card:hover {
+      border-color: #bdc1c6;
+      box-shadow: var(--shadow-md);
+    }
+
+    .milestone-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--ui-border-subtle);
+    }
+
+    .milestone-card-title {
+      font-family: var(--font-google);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .milestone-card-date {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .milestone-deliverables {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .milestone-deliverables li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
+    .milestone-deliverables li svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .milestone-footer {
+      padding-top: 10px;
+      border-top: 1px dashed var(--ui-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-tertiary);
+    }
+
+    .milestone-owner {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* Stepper */
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 16px;
+    }
+
+    .step-marker {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--g-blue-light);
+      color: var(--g-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+      border: 1px solid var(--g-blue-border);
+    }
+
+    .step-body {
+      flex: 1;
+    }
+
+    .step-body h4 {
+      font-family: var(--font-google);
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    /* Footer */
+    footer.gcp-footer {
+      border-top: 1px solid var(--ui-border);
+      background: var(--bg-surface);
+      padding: 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-top: 48px;
+    }
+
+    /* Search Input */
+    .search-box {
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 12px 8px 34px;
+      border-radius: 6px;
+      border: 1px solid var(--ui-border);
+      background: #fafafa;
+      font-size: 13px;
+      outline: none;
+      color: var(--text-primary);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--g-blue);
+      background: #ffffff;
+      box-shadow: 0 0 0 2px var(--g-blue-light);
+    }
+
+    .search-box svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      fill: var(--text-secondary);
+    }
+
+    @media (max-width: 1024px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar-toc {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Google Cloud Navigation Bar (Light Theme) -->
+  <header class="gcp-navbar">
+    <div class="navbar-left">
+      <a href="#" class="gcp-logo">
+        <!-- Google Cloud Official 4-Color Cloud SVG Logo -->
+        <svg width="28" height="24" viewBox="0 0 192 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M154.5 69.5C154.5 68.6 154.5 67.7 154.4 66.8C151.8 38.1 127.5 15.8 96 15.8C71.2 15.8 50 31.4 41.7 53.4C35.5 49.6 28.2 47.4 20.4 47.4C-1.4 47.4 -19.1 65.1 -19.1 86.9C-19.1 89.7 -18.8 92.4 -18.2 95C-9.5 100.8 0 115.8 0 133C0 157.3 19.7 177 44 177H150C173.2 177 192 158.2 192 135C192 113.2 175.3 95.3 153.9 93.2C154.3 92 154.5 90.7 154.5 89.5V69.5Z" fill="#4285F4"/>
+          <path d="M150 177H44C19.7 177 0 157.3 0 133C0 115.8 9.5 100.8 24.2 93.7C24.1 91.5 24 89.2 24 86.9C24 65.1 41.7 47.4 63.5 47.4C71.3 47.4 78.6 49.6 84.8 53.4C93.1 31.4 114.3 15.8 139.1 15.8C169.6 15.8 194.5 40.7 194.5 71.2C194.5 72.4 194.4 73.6 194.2 74.8C215.6 76.9 232.3 94.8 232.3 116.6C232.3 139.8 213.5 158.6 190.3 158.6H150V177Z" fill="#34A853" fill-opacity="0.15"/>
+        </svg>
+        <span>Google Cloud</span>
+      </a>
+
+      <div class="project-selector" title="Projeto Google Cloud ativo">
+        <!-- Folder Icon -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="#5f6368"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+        <span>gcp-data-lake</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#5f6368"><path d="M7 10l5 5 5-5z"/></svg>
+      </div>
+
+      <div class="breadcrumb">
+        <span>BigQuery</span>
+        <span class="sep">/</span>
+        <span>Governança</span>
+        <span class="sep">/</span>
+        <span class="current">Autorizações SAP RLS</span>
+      </div>
+    </div>
+
+    <div class="navbar-right">
+      <span class="badge-region">southamerica-east1 (São Paulo)</span>
+      <span class="client-badge">Google Cloud & SAP</span>
+    </div>
+  </header>
+
+  <!-- Sub-header with Title & Tab Navigation (Light Theme) -->
+  <div class="gcp-subheader">
+    <div class="page-title-row">
+      <div>
+        <h1 class="page-title">
+          <!-- Google BigQuery Icon (Blue Shield with Analytics nodes) -->
+          <svg viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+            <path fill="#1A73E8" d="M12 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+          </svg>
+          Governança e Transposição de Autorizações SAP para o BigQuery
+        </h1>
+        <div class="quick-meta">
+          Projeto Estratégico de Data Lakehouse &bull; Row-Level Security (RLS) &bull; Resolução de Níveis Organizacionais (PFCG)
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-button active" onclick="switchTab('tab-sdd', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        Arquitetura de Solução (SDD)
+        <span class="tab-counter">9 Seções</span>
+      </button>
+      <button class="tab-button" onclick="switchTab('tab-guide', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        Guia Prático de Execução (Runbook)
+        <span class="tab-counter">7 Fases</span>
+      </button>
+      <button class="tab-button" onclick="switchTab('tab-deepdive', this)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+        Explicação Minuciosa da Solução (Deep-Dive)
+        <span class="tab-counter">7 Tópicos</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Main Grid Layout -->
+  <div class="main-container">
+    
+    <!-- Sidebar Navigation (TOC) -->
+    <aside class="sidebar-toc">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" id="quickFilter" placeholder="Filtrar seções..." onkeyup="filterSidebar()">
+      </div>
+
+      <!-- TOC SDD -->
+      <div id="toc-sdd-content">
+        <div class="toc-title">Seções do SDD</div>
+        <ul class="toc-list">
+          <li><a href="#sdd-1" class="toc-link">1. Visão Geral e Objetivos</a></li>
+          <li><a href="#sdd-2" class="toc-link">2. Arquitetura da Solução</a></li>
+          <li><a href="#sdd-3" class="toc-link">3. Catálogo de Tabelas SAP</a></li>
+          <li><a href="#sdd-4" class="toc-link">4. Modelagem de Entitlements</a></li>
+          <li><a href="#sdd-5" class="toc-link">5. Implementação de RLS</a></li>
+          <li><a href="#sdd-6" class="toc-link">6. Automação por Metadados</a></li>
+          <li><a href="#sdd-7" class="toc-link">7. Performance e FinOps</a></li>
+          <li><a href="#sdd-8" class="toc-link">8. Governança e Auditoria</a></li>
+          <li><a href="#sdd-9" class="toc-link">9. Roadmap de Implementação</a></li>
+        </ul>
+      </div>
+
+      <!-- TOC Guide -->
+      <div id="toc-guide-content" style="display: none;">
+        <div class="toc-title">Fases do Runbook</div>
+        <ul class="toc-list">
+          <li>
+            <a href="#guide-fase0" class="toc-link">Fase 0: Pré-requisitos &amp; Diagnóstico</a>
+            <ul class="toc-sublist">
+              <li><a href="#step-01" class="toc-sublink">0.1 Permissões IAM</a></li>
+              <li><a href="#step-02" class="toc-sublink">0.2 Validação CDC das 7 Tabelas</a></li>
+              <li><a href="#step-03" class="toc-sublink">0.3 Cobertura de E-mails</a></li>
+            </ul>
+          </li>
+          <li><a href="#guide-fase1" class="toc-link">Fase 1: Estrutura de Governança</a></li>
+          <li><a href="#guide-fase2" class="toc-link">Fase 2: Pipeline de Entitlements</a></li>
+          <li><a href="#guide-fase3" class="toc-link">Fase 3: Automação RLS Massiva</a></li>
+          <li><a href="#guide-fase4" class="toc-link">Fase 4: FinOps em Tabelas Grandes</a></li>
+          <li><a href="#guide-fase5" class="toc-link">Fase 5: Matriz de Testes</a></li>
+          <li><a href="#guide-fase6" class="toc-link">Fase 6: Operação &amp; Rollback</a></li>
+        </ul>
+      </div>
+
+      <!-- TOC Deep-Dive -->
+      <div id="toc-deepdive-content" style="display: none;">
+        <div class="toc-title">Tópicos do Deep-Dive</div>
+        <ul class="toc-list">
+          <li><a href="#dd-1" class="toc-link">1. Visão Geral e Arquitetura</a></li>
+          <li><a href="#dd-2" class="toc-link">2. Catálogo de Todas as Tabelas</a></li>
+          <li>
+            <a href="#dd-3" class="toc-link">3. As Stored Procedures em Detalhes</a>
+            <ul class="toc-sublist">
+              <li><a href="#dd-3-1" class="toc-sublink">3.1 sp_refresh_sap_entitlements</a></li>
+              <li><a href="#dd-3-2" class="toc-sublink">3.2 sp_apply_sap_rls</a></li>
+              <li><a href="#dd-3-3" class="toc-sublink">3.3 sp_revoke_sap_rls</a></li>
+            </ul>
+          </li>
+          <li><a href="#dd-4" class="toc-link">4. Operação Contínua (Day-2)</a></li>
+          <li><a href="#dd-5" class="toc-link">5. Tratamento de Casos Críticos (SAP_ALL, Faixas)</a></li>
+          <li><a href="#dd-6" class="toc-link">6. Performance e FinOps</a></li>
+          <li><a href="#dd-7" class="toc-link">7. Auditoria e Diagnóstico</a></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Content Sections -->
+    <main class="content-body">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: SDD (SYSTEM DESIGN DOCUMENT)       -->
+      <!-- ========================================== -->
+      <div id="tab-sdd" class="tab-content active">
+
+        <!-- Section 1 -->
+        <article id="sdd-1" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">1</span> Visão Geral e Objetivos do Projeto</h2>
+            <span class="code-badge">Documento de Arquitetura</span>
+          </div>
+
+          <p>Todos os dados transacionais e cadastrais do SAP (ECC ou S/4HANA) no ambiente <strong>Google Cloud e SAP</strong> estão sendo replicados de forma contínua via CDC (Change Data Capture) para o Google Cloud BigQuery. As visões analíticas de negócio são expostas aos usuários e dashboards por meio de camadas de views (camadas Raw, Conformed e Serving).</p>
+
+          <div class="callout callout-warning">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#f9ab00"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            </div>
+            <div>
+              <strong>O Desafio Crítico:</strong> O modelo de segurança do SAP é transacional e baseado no framework <code>PFCG</code> (Perfis, Roles, Objetos e Níveis Organizacionais). No BigQuery, a segurança é analítica e baseada em Cloud IAM e <strong>Row-Level Security (RLS)</strong>. Sem uma transposição automatizada, haveria vazamento de dados de empresas ou centros restritos.
+            </div>
+          </div>
+
+          <h3 class="sub-title">Principais Metas Arquiteturais</h3>
+          <ul class="step-list">
+            <li class="step-item">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <h4>Sincronização Contínua das Tabelas de Segurança</h4>
+                <p>Replicar via CDC as 8 tabelas fundamentais de perfis, usuários e autorizações do SAP diretamente para o dataset <code>cortex7_sap_s4_raw</code>.</p>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <h4>De-Para Automático de Identidade</h4>
+                <p>Vincular o usuário SAP (<code>bname</code>) ao e-mail institucional corporativo (<code>adr6.smtp_addr</code>), correlacionando nativamente com a função <code>SESSION_USER()</code> do BigQuery.</p>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <h4>Tratamento de Níveis Organizacionais Complexos</h4>
+                <p>Suportar valores pontuais (<code>bukrs = '1000'</code>), faixas (<code>1000 a 1050</code>), coringas (<code>*</code>) e herança de roles compostas.</p>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-marker">✓</div>
+              <div class="step-body">
+                <h4>Automação Metadata-Driven</h4>
+                <p>Varredura do <code>INFORMATION_SCHEMA</code> para aplicar políticas de RLS de forma automática em todas as tabelas brutas que contenham colunas organizacionais.</p>
+              </div>
+            </li>
+          </ul>
+        </article>
+
+        <!-- Section 2 -->
+        <article id="sdd-2" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">2</span> Arquitetura da Solução de Ponta a Ponta</h2>
+            <span class="code-badge">Diagrama de Fluxo de Dados</span>
+          </div>
+
+          <p>O diagrama abaixo ilustra o ciclo de vida completo: desde a captura nos bancos de dados SAP até a avaliação em tempo de execução pelo otimizador de consultas do BigQuery quando um analista ou dashboard consulta uma View.</p>
+
+          <div class="mermaid-container">
+            <div class="mermaid">
+flowchart TD
+    subgraph SAP_Source["SAP ECC / S4HANA"]
+        T_SEC["Tabelas de Segurança:<br/>usr02, usr21, adr6,<br/>agr_users, agr_agrs,<br/>agr_1251, agr_1252, ust04"]
+        T_TX["Tabelas Transacionais:<br/>bkpf, bseg, acdoca, marc..."]
+    end
+
+    subgraph CDC_Layer["Camada de Ingestão CDC"]
+        CDC["Datastream / SLT / Qlik<br/>(Replicação Contínua)"]
+    end
+
+    subgraph BQ_Raw["BigQuery: Dataset Raw (cortex7_sap_s4_raw)"]
+        RAW_SEC["Tabelas Raw de Segurança"]
+        RAW_TX["Tabelas Transacionais Brutas<br/>(com bukrs, werks)"]
+    end
+
+    subgraph BQ_Gov["BigQuery: Dataset Governança (sap_governance)"]
+        SP_MODEL["Procedure de Consolidação<br/>sp_refresh_sap_entitlements"]
+        DIM_ENT["sec_user_org_entitlements<br/>(Tabela Clusterizada:<br/>user_email, org_field)"]
+        SP_AUTO["Automação RLS Metadata-Driven<br/>sp_apply_sap_rls"]
+    end
+
+    subgraph BQ_Serving["BigQuery: Camada Serving (Views)"]
+        V_FIN["Views Financeiras (bkpf/bseg)"]
+        V_LOG["Views de Suprimentos (mara/marc)"]
+    end
+
+    subgraph Users["Consumidores de Dados"]
+        ANALYST["Analista / Looker / PowerBI<br/>SESSION_USER() = joao.silva@empresa.com"]
+    end
+
+    T_SEC --> CDC
+    T_TX --> CDC
+    CDC --> RAW_SEC
+    CDC --> RAW_TX
+
+    RAW_SEC --> SP_MODEL
+    SP_MODEL --> DIM_ENT
+
+    SP_AUTO -->|"CREATE ROW ACCESS POLICY"| RAW_TX
+    DIM_ENT -.->|"Subquery Filter"| RAW_TX
+
+    RAW_TX --> V_FIN
+    RAW_TX --> V_LOG
+
+    ANALYST -->|"Query SQL"| V_FIN
+    V_FIN -.->|"Aplica RLS da Tabela Base (Invoker)"| RAW_TX
+            </div>
+          </div>
+        </article>
+
+        <!-- Section 3 -->
+        <article id="sdd-3" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">3</span> Mapeamento Detalhado do Modelo de Autorizações SAP</h2>
+            <span class="code-badge">PFCG &amp; Catálogo SAP</span>
+          </div>
+
+          <p>Para reproduzir com total fidelidade as permissões organizacionais, é obrigatório replicar via CDC as seguintes <strong>8 tabelas do catálogo do SAP</strong>:</p>
+
+          <div class="table-responsive">
+            <table class="gcp-table">
+              <thead>
+                <tr>
+                  <th>Tabela SAP</th>
+                  <th>Nome Técnico &amp; Descrição</th>
+                  <th>Campos Críticos</th>
+                  <th>Propósito no BigQuery</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="code-badge">usr02</span></td>
+                  <td>Dados de Logon do Usuário</td>
+                  <td><code>bname, gltgv, gltgb, uflag</code></td>
+                  <td>Valida vigência e bloqueio (<code>uflag = 0</code>).</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">usr21</span></td>
+                  <td>Chave Mestra Usuário-Endereço</td>
+                  <td><code>bname, persnumber, addrnumber</code></td>
+                  <td>Ponte entre o usuário SAP e os dados de contato.</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">adr6</span></td>
+                  <td>Central Address Management (E-mails)</td>
+                  <td><code>addrnumber, persnumber, smtp_addr</code></td>
+                  <td><strong>Crítica:</strong> E-mail corporativo para <code>SESSION_USER()</code>.</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">agr_users</span></td>
+                  <td>Atribuição de Roles aos Usuários</td>
+                  <td><code>agr_name, uname, from_dat, to_dat</code></td>
+                  <td>Relaciona o usuário às roles ativas.</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">agr_agrs</span></td>
+                  <td>Estrutura de Roles Compostas</td>
+                  <td><code>agr_name, child_agr</code></td>
+                  <td>Desmembra roles compostas nas roles simples filhas.</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">agr_1252</span></td>
+                  <td>Níveis Organizacionais das Roles</td>
+                  <td><code>agr_name, varbl, low, high</code></td>
+                  <td><strong>Tabela-mestre de escopo:</strong> valores de <code>$bukrs</code>, <code>$werks</code>.</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">agr_1251</span></td>
+                  <td>Dados de Autorização por Campo</td>
+                  <td><code>agr_name, object, field, low, high</code></td>
+                  <td>Campos não promovidos a níveis org (ex.: <code>f_bkpf_buk</code>).</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+                <tr>
+                  <td><span class="code-badge">ust04</span></td>
+                  <td>Perfis de Usuário Atribuídos Diretamente</td>
+                  <td><code>bname, profile</code></td>
+                  <td><strong>Crítica para SAP_ALL:</strong> Captura perfis diretos na SU01 (ex.: <code>SAP_ALL</code>, <code>SAP_NEW</code>).</td>
+                  <td><span class="badge-mandatory">Obrigatória</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout-info">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1a73e8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <div>
+              <strong>Convenção de Prefixos ($varbl):</strong> No SAP PFCG, variáveis organizacionais usam cifrão (ex.: <code>$bukrs</code>). No BigQuery, o pipeline remove o cifrão com <code>REGEXP_REPLACE(varbl, r'^\$', '')</code> para casar perfeitamente com a coluna da tabela física (<code>bukrs</code>).
+            </div>
+          </div>
+
+          <h3 class="sub-title">Como o BigQuery Trata o Usuário com <code>SAP_ALL</code> (Superusuário)?</h3>
+          <p>No SAP, <code>SAP_ALL</code> <strong>não é uma Role PFCG (agr_*)</strong>, mas sim um <strong>Perfil Composto Gerado</strong> que concede acesso irrestrito a todos os objetos e campos organizacionais com coringa (<code>*</code>). Um usuário pode receber <code>SAP_ALL</code> diretamente na transação <code>SU01</code> (aba Perfis) sem possuir nenhuma role PFCG associada.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+            </div>
+            <div>
+              <strong>Estratégia de Resolução em Três Camadas para SAP_ALL:</strong>
+              <ol style="margin-left: 20px; margin-top: 6px;">
+                <li><strong>Ingestão CDC da Tabela ust04:</strong> Identifica atribuições diretas de <code>UPPER(profile) IN ('SAP_ALL', 'SAP_NEW')</code> para o usuário corporativo.</li>
+                <li><strong>Flag Global de Acesso Total:</strong> O pipeline de governança insere na tabela <code>sec_user_org_entitlements</code> um registro com <code>org_field = '*'</code> e <code>is_all_access = TRUE</code>. Na política de RLS, a condição <code>(ent.org_field = 'bukrs' OR ent.org_field = '*')</code> retorna <code>TRUE</code> instantaneamente para todas as tabelas.</li>
+                <li><strong>Curto-Circuito (Short-Circuit Evaluation):</strong> Contas técnicas e superusuários com <code>SAP_ALL</code> são avaliados prioritariamente no início do predicado RLS, garantindo que suas consultas rodem sem overhead analítico.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- Section 4 -->
+        <article id="sdd-4" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">4</span> Modelagem da Tabela de Entitlements</h2>
+            <span class="code-badge">Armazenamento Otimizado</span>
+          </div>
+
+          <p>Para evitar queries com múltiplos joins entre as tabelas <code>agr_*</code> a cada consulta de usuário, materializamos as permissões em uma tabela otimizada e clusterizada por <code>(user_email, org_field)</code>:</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL DDL</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+(
+  user_email STRING NOT NULL OPTIONS(description="E-mail corporativo em minúsculas (coincide com SESSION_USER())"),
+  sap_uname STRING NOT NULL OPTIONS(description="ID do usuário no SAP (bname)"),
+  org_field STRING NOT NULL OPTIONS(description="Campo organizacional correspondente (bukrs, werks, etc.)"),
+  org_value STRING OPTIONS(description="Valor organizacional desnormalizado para correspondência direta no RLS (IN subquery)"),
+  val_low STRING OPTIONS(description="Valor pontual ou limite inferior do intervalo"),
+  val_high STRING OPTIONS(description="Limite superior do intervalo (NULL se pontual)"),
+  is_all_access BOOL NOT NULL OPTIONS(description="Flag de acesso total (*) para este campo"),
+  source_roles ARRAY&lt;STRING&gt; OPTIONS(description="Roles de origem para rastreabilidade e auditoria"),
+  updated_at TIMESTAMP NOT NULL OPTIONS(description="Data da última sincronização")
+)
+CLUSTER BY user_email, org_field;</code></pre>
+          </div>
+        </article>
+
+        <!-- Section 5 -->
+        <article id="sdd-5" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">5</span> Implementação de Row-Level Security (RLS)</h2>
+            <span class="code-badge">Segurança em Nível de Linha</span>
+          </div>
+
+          <h3 class="sub-title">Onde Aplicar: Tabelas RAW vs Views de Consumo?</h3>
+          <p>No BigQuery, as views regulares rodam sob o modelo <code>SECURITY INVOKER</code>. Isso significa que quando o usuário executa uma consulta na View, o BigQuery avalia o RLS da <strong>tabela base RAW</strong> usando o <code>SESSION_USER()</code> do usuário final.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            </div>
+            <div>
+              <strong>Vantagem da Aplicação na Camada RAW:</strong> Qualquer nova view analítica construída sobre as tabelas brutas herda automaticamente a proteção de RLS sem necessidade de recriar regras. Além disso, analistas com permissão de exploração nas tabelas brutas não conseguirão vazar dados.
+            </div>
+          </div>
+
+          <h3 class="sub-title">DDL da Política de Row-Level Security com Top-Level IN Subqueries Não Correlacionadas</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL RLS Policy</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE ROW ACCESS POLICY rap_sap_bukrs
+ON `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`
+GRANT TO (
+  'group:gcp-bi-analysts@empresa.com',
+  'group:gcp-sap-consumers@empresa.com'
+)
+FILTER USING (
+  -- 1. Bypass para Contas de Serviço e Administradores
+  SESSION_USER() LIKE '%@gcp-data-lake.iam.gserviceaccount.com'
+  OR SESSION_USER() IN ('admin-governance@empresa.com')
+
+  -- 2. Superusuários com Acesso Total (*) ou SAP_ALL (subquery não correlacionada)
+  OR TRUE IN (
+    SELECT is_all_access
+    FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+    WHERE user_email = SESSION_USER()
+      AND (org_field = 'bukrs' OR org_field = '*')
+      AND is_all_access = TRUE
+  )
+
+  -- 3. Avaliação de Usuários Comuns (subquery não correlacionada com block pruning)
+  OR bukrs IN (
+    SELECT org_value
+    FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+    WHERE user_email = SESSION_USER()
+      AND org_field = 'bukrs'
+  )
+);</code></pre>
+          </div>
+        </article>
+
+        <!-- Section 6 -->
+        <article id="sdd-6" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">6</span> Automação por Metadados (Metadata-Driven RLS)</h2>
+            <span class="code-badge">Execução Dinâmica</span>
+          </div>
+
+          <p>Para não criar scripts manuais para centenas de tabelas, o BigQuery executa uma Stored Procedure que inspeciona o catálogo <code>INFORMATION_SCHEMA.COLUMNS</code>, localiza todas as tabelas contendo a coluna (ex.: <code>bukrs</code>) e aplica a política dinamicamente:</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Invocação</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CALL `gcp-data-lake.sap_governance.sp_apply_sap_rls`(
+  'ce-sap-latam-genai', 
+  'cortex7_sap_s4_raw', 
+  'bukrs', 
+  "'group:gcp-bi-analysts@empresa.com', 'group:gcp-sap-consumers@empresa.com'"
+);</code></pre>
+          </div>
+        </article>
+
+        <!-- Section 7 -->
+        <article id="sdd-7" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">7</span> Performance e FinOps em Tabelas Grandes</h2>
+            <span class="code-badge">Block Pruning &amp; Slot Optimization</span>
+          </div>
+
+          <p>Tabelas como <code>acdoca</code> e <code>bseg</code> possuem centenas de milhões ou bilhões de registros. Sem clustering físico, uma consulta com RLS escanearia todo o volume de dados.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+            </div>
+            <div>
+              <strong>Regra de Ouro FinOps:</strong> Toda tabela protegida por RLS por <code>bukrs</code> deve ter <code>bukrs</code> como primeiro ou segundo campo de clustering (ex.: <code>CLUSTER BY bukrs, gjahr, belnr</code>). O BigQuery ignora blocos de dados físicos fora do escopo do usuário, reduzindo os bytes processados em até 90%.
+            </div>
+          </div>
+        </article>
+
+        <!-- Section 8 -->
+        <article id="sdd-8" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">8</span> Governança, Auditoria e Validação</h2>
+            <span class="code-badge">Conformidade e Rastreabilidade</span>
+          </div>
+
+          <p>Para auditar todas as políticas ativas no Data Lake a qualquer momento diretamente no catálogo do BigQuery:</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Auditoria</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  target_project,
+  target_dataset,
+  target_table,
+  org_field,
+  policy_name,
+  action,
+  applied_by,
+  applied_at
+FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`
+WHERE action IN ('APPLIED', 'REVOKED')
+QUALIFY ROW_NUMBER() OVER (PARTITION BY target_table, org_field ORDER BY applied_at DESC) = 1
+ORDER BY target_table;</code></pre>
+          </div>
+        </article>
+
+        <!-- Section 9 -->
+        <article id="sdd-9" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">9</span> Roadmap de Implementação</h2>
+            <span class="code-badge">Cronograma Técnico &bull; 7 Semanas</span>
+          </div>
+
+          <div class="roadmap-wrapper">
+            <!-- KPI Summary Cards -->
+            <div class="roadmap-kpi-bar">
+              <div class="kpi-card">
+                <span class="kpi-label">Duração Total</span>
+                <span class="kpi-value">7 Semanas</span>
+                <span class="kpi-sub">01 Outubro a 24 Novembro</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Fases de Entrega</span>
+                <span class="kpi-value">4 Fases</span>
+                <span class="kpi-sub">Execução Sequencial &amp; Ágil</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Marcos Críticos</span>
+                <span class="kpi-value">8 Entregáveis</span>
+                <span class="kpi-sub">Com Definição de Pronto (DoD)</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Escopo Inicial</span>
+                <span class="kpi-value">Finanças &amp; Suprimentos</span>
+                <span class="kpi-sub">bkpf, bseg, marc, mara</span>
+              </div>
+            </div>
+
+            <!-- Google Cloud Visual Gantt Chart -->
+            <div class="gantt-chart-card">
+              <table class="gantt-table">
+                <thead>
+                  <tr>
+                    <th class="col-task" rowspan="2">Fases &amp; Entregáveis do Projeto</th>
+                    <th class="month-header" colspan="4">Outubro 2026</th>
+                    <th class="month-header" colspan="3">Novembro 2026</th>
+                  </tr>
+                  <tr>
+                    <th class="week-header">Semana 1<br><span style="font-size:10px; font-weight:normal; color:#80868b;">01 - 07 Out</span></th>
+                    <th class="week-header">Semana 2<br><span style="font-size:10px; font-weight:normal; color:#80868b;">08 - 14 Out</span></th>
+                    <th class="week-header">Semana 3<br><span style="font-size:10px; font-weight:normal; color:#80868b;">15 - 21 Out</span></th>
+                    <th class="week-header">Semana 4<br><span style="font-size:10px; font-weight:normal; color:#80868b;">22 - 28 Out</span></th>
+                    <th class="week-header">Semana 5<br><span style="font-size:10px; font-weight:normal; color:#80868b;">29 Out - 04 Nov</span></th>
+                    <th class="week-header">Semana 6<br><span style="font-size:10px; font-weight:normal; color:#80868b;">05 - 11 Nov</span></th>
+                    <th class="week-header">Semana 7<br><span style="font-size:10px; font-weight:normal; color:#80868b;">12 - 24 Nov</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- FASE 1 -->
+                  <tr class="phase-row">
+                    <td colspan="8">
+                      <span class="phase-badge-pill pill-phase1">Fase 1: Fundação &amp; Identidade</span>
+                      <span style="font-size:12px; font-weight:normal; color:#5f6368; margin-left:8px;">Validação de Ingestão CDC e Mapeamento de Usuários</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">1.1 Validação CDC das 8 Tabelas SAP (usr*, agr*, adr*, ust*)</td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-blue" title="01 a 07 Outubro">01 - 07 Out (7d)</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">1.2 Homologação De-Para bname &rarr; smtp_addr</td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-blue" title="08 a 14 Outubro">08 - 14 Out (7d)</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+
+                  <!-- FASE 2 -->
+                  <tr class="phase-row">
+                    <td colspan="8">
+                      <span class="phase-badge-pill pill-phase2">Fase 2: Modelagem &amp; Entitlements</span>
+                      <span style="font-size:12px; font-weight:normal; color:#5f6368; margin-left:8px;">Estruturação da Tabela Otimizada de Permissões</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">2.1 Criação da Tabela sec_user_org_entitlements</td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-green" title="15 a 21 Outubro">15 - 21 Out (7d)</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">2.2 Testes de Performance &amp; Consolidação de Regras</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-green" title="22 a 28 Outubro">22 - 28 Out (7d)</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+
+                  <!-- FASE 3 -->
+                  <tr class="phase-row">
+                    <td colspan="8">
+                      <span class="phase-badge-pill pill-phase3">Fase 3: RLS &amp; Automação Metadata-Driven</span>
+                      <span style="font-size:12px; font-weight:normal; color:#5f6368; margin-left:8px;">Engine de Aplicação Dinâmica e Piloto Financeiro</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">3.1 Desenvolvimento Procedure sp_apply_sap_rls</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-amber" title="29 Outubro a 04 Novembro">29 Out - 04 Nov (7d)</div></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">3.2 Piloto no Módulo Financeiro (bkpf, bseg)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-amber" title="05 a 11 Novembro">05 - 11 Nov (7d)</div></td>
+                    <td></td>
+                  </tr>
+
+                  <!-- FASE 4 -->
+                  <tr class="phase-row">
+                    <td colspan="8">
+                      <span class="phase-badge-pill pill-phase4">Fase 4: Validação &amp; Rollout Corporativo</span>
+                      <span style="font-size:12px; font-weight:normal; color:#5f6368; margin-left:8px;">Homologação com Segurança SAP e Expansão em Massa</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">4.1 Validação Cruzada com Auditoria &amp; Segurança SAP</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-purple" title="08 a 14 Novembro">08 - 14 Nov (7d)</div></td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td class="col-task">4.2 Rollout em Escala para Demais Módulos (MM, SD, CO)</td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="gantt-bar-cell"><div class="gantt-bar bar-purple" title="15 a 24 Novembro">15 - 24 Nov (10d)</div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Detailed Phase Milestone Cards -->
+            <div class="milestones-grid">
+              
+              <!-- Card 1 -->
+              <div class="milestone-card">
+                <div>
+                  <div class="milestone-card-header">
+                    <div>
+                      <span class="phase-badge-pill pill-phase1">Fase 1</span>
+                      <div class="milestone-card-title" style="margin-top:6px;">Fundação &amp; Identidade</div>
+                    </div>
+                    <span class="milestone-card-date">01 a 14 Out</span>
+                  </div>
+                  <ul class="milestone-deliverables">
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1a73e8"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>8 tabelas de segurança replicadas via CDC no dataset <code>cortex7_sap_s4_raw</code>.</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1a73e8"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Validação do vínculo <code>bname &rarr; persnumber &rarr; smtp_addr</code>.</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1a73e8"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Cobertura de e-mails corporativos &ge; 95%.</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="milestone-footer">
+                  <span>Responsável:</span>
+                  <span class="milestone-owner">Engenharia de Dados &amp; Basis SAP</span>
+                </div>
+              </div>
+
+              <!-- Card 2 -->
+              <div class="milestone-card">
+                <div>
+                  <div class="milestone-card-header">
+                    <div>
+                      <span class="phase-badge-pill pill-phase2">Fase 2</span>
+                      <div class="milestone-card-title" style="margin-top:6px;">Modelagem &amp; Entitlements</div>
+                    </div>
+                    <span class="milestone-card-date">15 a 28 Out</span>
+                  </div>
+                  <ul class="milestone-deliverables">
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1e8e3e"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Criação da tabela <code>sec_user_org_entitlements</code> clusterizada.</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1e8e3e"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Desdobramento recursivo de roles compostas (<code>agr_agrs</code>).</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#1e8e3e"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Tratamento de coringas (<code>*</code>) e intervalos (<code>low-high</code>).</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="milestone-footer">
+                  <span>Responsável:</span>
+                  <span class="milestone-owner">Engenharia de Dados &amp; Governança</span>
+                </div>
+              </div>
+
+              <!-- Card 3 -->
+              <div class="milestone-card">
+                <div>
+                  <div class="milestone-card-header">
+                    <div>
+                      <span class="phase-badge-pill pill-phase3">Fase 3</span>
+                      <div class="milestone-card-title" style="margin-top:6px;">Automação RLS &amp; Piloto</div>
+                    </div>
+                    <span class="milestone-card-date">29 Out a 11 Nov</span>
+                  </div>
+                  <ul class="milestone-deliverables">
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#f9ab00"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Procedure dinâmica <code>sp_apply_sap_rls</code> via INFORMATION_SCHEMA.</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#f9ab00"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Aplicação e teste em tabelas críticas (<code>bkpf</code>, <code>bseg</code>).</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#f9ab00"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Validação FinOps de Block Pruning (Clustering bukrs).</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="milestone-footer">
+                  <span>Responsável:</span>
+                  <span class="milestone-owner">Equipe BigQuery &amp; Finanças Corporativo</span>
+                </div>
+              </div>
+
+              <!-- Card 4 -->
+              <div class="milestone-card">
+                <div>
+                  <div class="milestone-card-header">
+                    <div>
+                      <span class="phase-badge-pill pill-phase4">Fase 4</span>
+                      <div class="milestone-card-title" style="margin-top:6px;">Homologação &amp; Rollout</div>
+                    </div>
+                    <span class="milestone-card-date">08 a 24 Nov</span>
+                  </div>
+                  <ul class="milestone-deliverables">
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#7627bb"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Homologação cruzada com a Segurança da Informação SAP.</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#7627bb"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Aplicação em massa para Suprimentos (MM) e Vendas (SD).</span>
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="#7627bb"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                      <span>Transição para operação contínua e Runbook ativo.</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="milestone-footer">
+                  <span>Responsável:</span>
+                  <span class="milestone-owner">Governança de TI &amp; Auditoria</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+
+      <!-- ========================================== -->
+      <!-- TAB 2: GUIA PRÁTICO DE EXECUÇÃO (RUNBOOK) -->
+      <!-- ========================================== -->
+      <div id="tab-guide" class="tab-content">
+
+        <!-- Fase 0 -->
+        <article id="guide-fase0" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">0</span> Fase 0: Pré-requisitos e Validação de Ambiente</h2>
+            <span class="code-badge">Diagnóstico Pré-Voo</span>
+          </div>
+
+          <h3 id="step-01" class="sub-title">Passo 0.1: Permissões IAM do Operador</h3>
+          <p>O operador necessita das seguintes roles no projeto <code>gcp-data-lake</code>:</p>
+          <ul>
+            <li><code>roles/bigquery.admin</code> ou combinação de:</li>
+            <li><code>roles/bigquery.dataOwner</code> (em <code>cortex7_sap_s4_raw</code> e <code>sap_governance</code>)</li>
+            <li><code>roles/bigquery.filteredDataViewer</code> (para gerenciar políticas de RLS)</li>
+            <li><code>roles/bigquery.jobUser</code></li>
+          </ul>
+
+          <h3 id="step-02" class="sub-title">Passo 0.2: Validação da Replicação CDC das 8 Tabelas SAP</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Diagnóstico</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  table_id AS table_name,
+  row_count,
+  ROUND(size_bytes / POW(1024, 2), 2) AS size_mb,
+  TIMESTAMP_MILLIS(last_modified_time) AS last_modified
+FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.__TABLES__`
+WHERE table_id IN (
+  'usr02', 'usr21', 'adr6', 'agr_users', 'agr_agrs', 'agr_1252', 'agr_1251', 'ust04'
+)
+ORDER BY table_name;</code></pre>
+          </div>
+
+          <h3 id="step-03" class="sub-title">Passo 0.3: Taxa de Cobertura de E-mails Corporativos</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Auditoria de Identidade</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT
+  COUNT(DISTINCT u.bname) AS total_sap_users,
+  COUNT(DISTINCT IF(a.smtp_addr IS NOT NULL AND a.smtp_addr LIKE '%@empresa.com%', u.bname, NULL)) AS users_with_valid_email,
+  ROUND(COUNT(DISTINCT IF(a.smtp_addr IS NOT NULL AND a.smtp_addr LIKE '%@empresa.com%', u.bname, NULL)) / COUNT(DISTINCT u.bname) * 100, 2) AS email_coverage_pct
+FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u
+LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` up 
+  ON u.bname = up.bname
+LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a 
+  ON up.persnumber = a.persnumber AND up.addrnumber = a.addrnumber
+WHERE u.uflag = 0 
+  AND CURRENT_DATE() BETWEEN COALESCE(u.gltgv, DATE '1900-01-01') AND COALESCE(u.gltgb, DATE '9999-12-31');</code></pre>
+          </div>
+        </article>
+
+        <!-- Fase 1 -->
+        <article id="guide-fase1" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">1</span> Fase 1: Criação da Estrutura de Governança</h2>
+            <span class="code-badge">DDL &amp; Setup</span>
+          </div>
+
+          <h3 class="sub-title">Passo 1.1: Criar o Dataset de Governança via CLI</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">Bash / bq CLI</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-bash">bq --location=southamerica-east1 mk \
+  --dataset \
+  --description="Dataset de governanca de acesso, perfis e RLS SAP" \
+  gcp-data-lake:sap_governance</code></pre>
+          </div>
+
+          <h3 class="sub-title">Passo 1.2: Criar a Tabela Otimizada de Entitlements</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL DDL</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+(
+  user_email STRING NOT NULL,
+  sap_uname STRING NOT NULL,
+  org_field STRING NOT NULL,
+  org_value STRING,
+  val_low STRING,
+  val_high STRING,
+  is_all_access BOOL NOT NULL,
+  source_roles ARRAY&lt;STRING&gt;,
+  updated_at TIMESTAMP NOT NULL
+)
+CLUSTER BY user_email, org_field;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Passo 1.3: Criar a Tabela de Log de Auditoria do RLS</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL DDL</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_rls_audit_log`
+(
+  execution_id STRING NOT NULL,
+  target_project STRING NOT NULL,
+  target_dataset STRING NOT NULL,
+  target_table STRING NOT NULL,
+  org_field STRING NOT NULL,
+  action STRING NOT NULL,
+  policy_name STRING NOT NULL,
+  error_message STRING,
+  applied_by STRING NOT NULL,
+  applied_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(applied_at)
+CLUSTER BY target_table, org_field;</code></pre>
+          </div>
+        </article>
+
+        <!-- Fase 2 -->
+        <article id="guide-fase2" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">2</span> Fase 2: Pipeline de Carga de Entitlements</h2>
+            <span class="code-badge">ETL / Stored Procedure</span>
+          </div>
+
+          <h3 class="sub-title">Passo 2.1: Stored Procedure de Consolidação das Autorizações</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Stored Procedure</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE PROCEDURE `gcp-data-lake.sap_governance.sp_refresh_sap_entitlements`()
+BEGIN
+  CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+  CLUSTER BY user_email, org_field
+  AS
+  WITH active_users AS (
+    SELECT
+      LOWER(TRIM(a.smtp_addr)) AS user_email,
+      u.bname AS sap_uname
+    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` up
+      ON u.bname = up.bname
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a
+      ON up.persnumber = a.persnumber AND up.addrnumber = a.addrnumber
+    WHERE (u.uflag IS NULL OR u.uflag = 0)
+      AND CURRENT_DATE() BETWEEN COALESCE(u.gltgv, DATE '1900-01-01') AND COALESCE(u.gltgb, DATE '9999-12-31')
+      AND a.smtp_addr IS NOT NULL
+      AND a.smtp_addr LIKE '%@empresa.com%'
+  ),
+
+  user_roles_expanded AS (
+    SELECT
+      au.user_email,
+      au.sap_uname,
+      COALESCE(comp.child_agr, r.agr_name) AS effective_role
+    FROM active_users au
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_users` r
+      ON au.sap_uname = r.uname
+    LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_agrs` comp
+      ON r.agr_name = comp.agr_name
+    WHERE CURRENT_DATE() BETWEEN COALESCE(r.from_dat, DATE '1900-01-01') AND COALESCE(r.to_dat, DATE '9999-12-31')
+  ),
+
+  raw_org_permissions AS (
+    SELECT
+      ur.user_email,
+      ur.sap_uname,
+      ur.effective_role,
+      LOWER(REGEXP_REPLACE(a1252.varbl, r'^\$', '')) AS org_field,
+      TRIM(a1252.low) AS val_low,
+      TRIM(a1252.high) AS val_high
+    FROM user_roles_expanded ur
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1252` a1252
+      ON ur.effective_role = a1252.agr_name
+    WHERE a1252.varbl IS NOT NULL AND a1252.varbl != ''
+
+    UNION ALL
+
+    SELECT
+      ur.user_email,
+      ur.sap_uname,
+      ur.effective_role,
+      LOWER(TRIM(a1251.field)) AS org_field,
+      TRIM(a1251.low) AS val_low,
+      TRIM(a1251.high) AS val_high
+    FROM user_roles_expanded ur
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1251` a1251
+      ON ur.effective_role = a1251.agr_name
+    WHERE LOWER(a1251.field) IN ('bukrs', 'werks', 'vkorg', 'ekorg', 'gsber', 'prctr')
+
+    UNION ALL
+
+    -- Fonte 3: Superusuários com Perfil Direto SAP_ALL (ust04)
+    SELECT
+      au.user_email,
+      au.sap_uname,
+      'PROFILE:SAP_ALL' AS effective_role,
+      '*' AS org_field,
+      '*' AS val_low,
+      CAST(NULL AS STRING) AS val_high
+    FROM active_users au
+    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.ust04` p
+      ON au.sap_uname = p.bname
+    WHERE UPPER(p.profile) IN ('SAP_ALL', 'SAP_NEW')
+  ),
+
+  master_bukrs AS (
+    SELECT DISTINCT bukrs AS org_value FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.t001`
+    UNION DISTINCT
+    SELECT DISTINCT bukrs FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`
+  ),
+
+  expanded_values AS (
+    -- 1. Valores pontuais simples
+    SELECT
+      p.user_email,
+      p.sap_uname,
+      p.org_field,
+      p.val_low AS org_value,
+      p.val_low,
+      p.val_high,
+      FALSE AS is_all_access,
+      p.effective_role
+    FROM raw_org_permissions p
+    WHERE p.val_low != '*' 
+      AND (p.val_high IS NULL OR p.val_high = '')
+
+    UNION ALL
+
+    -- 2. Faixas de valores (val_low até val_high) expandidas contra empresas existentes
+    SELECT
+      p.user_email,
+      p.sap_uname,
+      p.org_field,
+      m.org_value,
+      p.val_low,
+      p.val_high,
+      FALSE AS is_all_access,
+      p.effective_role
+    FROM raw_org_permissions p
+    JOIN master_bukrs m
+      ON p.org_field = 'bukrs' AND m.org_value BETWEEN p.val_low AND p.val_high
+    WHERE p.val_high IS NOT NULL AND p.val_high != ''
+
+    UNION ALL
+
+    -- 3. Acesso Total (*) e Superusuários (SAP_ALL)
+    SELECT
+      p.user_email,
+      p.sap_uname,
+      p.org_field,
+      CAST(NULL AS STRING) AS org_value,
+      p.val_low,
+      p.val_high,
+      TRUE AS is_all_access,
+      p.effective_role
+    FROM raw_org_permissions p
+    WHERE p.val_low = '*' OR p.org_field = '*'
+  )
+
+  SELECT
+    user_email,
+    sap_uname,
+    org_field,
+    org_value,
+    val_low,
+    val_high,
+    is_all_access,
+    ARRAY_AGG(DISTINCT effective_role) AS source_roles,
+    CURRENT_TIMESTAMP() AS updated_at
+  FROM expanded_values
+  WHERE (org_value IS NOT NULL AND org_value != '') OR is_all_access = TRUE
+  GROUP BY user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access;
+END;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Passo 2.2: Teste de Carga e Invocação</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Execução</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">-- Execução manual imediata para validação
+CALL `gcp-data-lake.sap_governance.sp_refresh_sap_entitlements`();</code></pre>
+          </div>
+        </article>
+
+        <!-- Fase 3 -->
+        <article id="guide-fase3" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">3</span> Fase 3: Automação da Aplicação de RLS Massiva</h2>
+            <span class="code-badge">Metadata-Driven Engine</span>
+          </div>
+
+          <h3 class="sub-title">Passo 3.1: Stored Procedure de Aplicação Automática</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Stored Procedure</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE PROCEDURE `gcp-data-lake.sap_governance.sp_apply_sap_rls`(
+  target_project STRING,
+  target_dataset STRING,
+  org_column_name STRING,
+  consumer_grantees STRING
+)
+BEGIN
+  DECLARE exec_id STRING;
+  DECLARE formatted_grantees STRING;
+  DECLARE dynamic_grantees STRING;
+  SET exec_id = GENERATE_UUID();
+  SET formatted_grantees = TRIM(COALESCE(consumer_grantees, ''));
+
+  -- Modo Dinâmico: Se vazio, extrai os usuários da sec_user_org_entitlements
+  IF formatted_grantees = '' OR formatted_grantees = "''" OR formatted_grantees = '""' THEN
+    EXECUTE IMMEDIATE FORMAT("""
+      SELECT STRING_AGG(DISTINCT CONCAT("'user:", LOWER(user_email), "'"), ', ')
+      FROM `%s.sap_governance.sec_user_org_entitlements`
+      WHERE (LOWER(org_field) = LOWER('%s') OR org_field = '*')
+        AND user_email IS NOT NULL AND user_email != ''
+    """, target_project, org_column_name)
+    INTO dynamic_grantees;
+
+    IF dynamic_grantees IS NOT NULL AND dynamic_grantees != '' THEN
+      SET formatted_grantees = dynamic_grantees;
+    ELSE
+      SET formatted_grantees = "'user:admin-governanca@empresa.com'";
+    END IF;
+  ELSE
+    -- Garante que os membros IAM possuam aspas simples se forem passados como string direta
+    IF NOT (STARTS_WITH(formatted_grantees, "'") OR STARTS_WITH(formatted_grantees, '"')) THEN
+      SET formatted_grantees = FORMAT("'%s'", formatted_grantees);
+    END IF;
+  END IF;
+
+  FOR target IN (
+    SELECT table_name
+    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`
+    WHERE LOWER(column_name) = LOWER(org_column_name)
+      AND table_schema = target_dataset
+      AND table_name NOT LIKE 'agr_%'
+      AND table_name NOT LIKE 'usr%'
+      AND table_name NOT LIKE 'adr%'
+      AND table_name NOT LIKE 'dd%'
+      AND table_name NOT LIKE 't001%'
+      AND table_name NOT LIKE 'sec_%'
+    GROUP BY table_name
+  )
+  DO
+    BEGIN
+      EXECUTE IMMEDIATE FORMAT("""
+        CREATE OR REPLACE ROW ACCESS POLICY rap_auto_%s_%s
+        ON `%s.%s.%s`
+        GRANT TO (%s)
+        FILTER USING (
+          SESSION_USER() LIKE '%%@gcp-data-lake.iam.gserviceaccount.com'
+          OR SESSION_USER() IN ('admin-governanca@empresa.com')
+          OR TRUE IN (
+            SELECT is_all_access
+            FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+            WHERE user_email = SESSION_USER()
+              AND (org_field = '%s' OR org_field = '*')
+              AND is_all_access = TRUE
+          )
+          OR %s IN (
+            SELECT org_value
+            FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+            WHERE user_email = SESSION_USER()
+              AND org_field = '%s'
+          )
+        );
+      """, 
+        LOWER(org_column_name), LOWER(target.table_name),
+        target_project, target_dataset, target.table_name,
+        formatted_grantees,
+        LOWER(org_column_name), LOWER(org_column_name), LOWER(org_column_name)
+      );
+
+      INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+      VALUES (
+        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+        'APPLIED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),
+        NULL, SESSION_USER(), CURRENT_TIMESTAMP()
+      );
+    EXCEPTION WHEN ERROR THEN
+      INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+      VALUES (
+        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+        'FAILED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),
+        @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()
+      );
+    END;
+  END FOR;
+END;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Passo 3.2: Criar a Stored Procedure de Remoção Emergencial (<code>sp_revoke_sap_rls</code>)</h3>
+          <p>Essencial para situações em que for necessário reverter as políticas de RLS rapidamente. Como o BigQuery não expõe <code>INFORMATION_SCHEMA.ROW_ACCESS_POLICIES</code> em SQL e exige <code>DROP ALL ROW ACCESS POLICIES</code> ao remover a última política de uma tabela, a procedure realiza uma remoção inteligente com fallback seguro e idempotente:</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Procedure Rollback</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE PROCEDURE `gcp-data-lake.sap_governance.sp_revoke_sap_rls`(
+  target_project STRING,
+  target_dataset STRING,
+  org_column_name STRING
+)
+BEGIN
+  DECLARE exec_id STRING;
+  SET exec_id = GENERATE_UUID();
+
+  -- Identifica as tabelas candidatas a partir de INFORMATION_SCHEMA.COLUMNS e do histórico em sec_rls_audit_log
+  FOR target IN (
+    SELECT DISTINCT table_name
+    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`
+    WHERE LOWER(column_name) = LOWER(org_column_name)
+      AND table_schema = target_dataset
+      AND table_name NOT LIKE 'agr_%'
+      AND table_name NOT LIKE 'usr%'
+      AND table_name NOT LIKE 'adr%'
+      AND table_name NOT LIKE 'dd%'
+      AND table_name NOT LIKE 't001%'
+      AND table_name NOT LIKE 'sec_%'
+    UNION DISTINCT
+    SELECT DISTINCT target_table AS table_name
+    FROM `gcp-data-lake.sap_governance.sec_rls_audit_log`
+    WHERE target_project = target_project
+      AND target_dataset = target_dataset
+      AND LOWER(org_field) = LOWER(org_column_name)
+      AND action = 'APPLIED'
+  )
+  DO
+    BEGIN
+      DECLARE policy_name STRING;
+      SET policy_name = FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name));
+
+      BEGIN
+        EXECUTE IMMEDIATE FORMAT("""
+          DROP ROW ACCESS POLICY IF EXISTS %s ON `%s.%s.%s`;
+        """, policy_name, target_project, target_dataset, target.table_name);
+
+        INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+        VALUES (
+          exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+          'REVOKED', policy_name, NULL, SESSION_USER(), CURRENT_TIMESTAMP()
+        );
+      EXCEPTION WHEN ERROR THEN
+        IF CONTAINS_SUBSTR(LOWER(@@error.message), 'drop all') 
+           OR CONTAINS_SUBSTR(LOWER(@@error.message), 'last row access policy') THEN
+          BEGIN
+            EXECUTE IMMEDIATE FORMAT("""
+              DROP ALL ROW ACCESS POLICIES ON `%s.%s.%s`;
+            """, target_project, target_dataset, target.table_name);
+
+            INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+            VALUES (
+              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+              'REVOKED', FORMAT('%s (DROP ALL)', policy_name), NULL, SESSION_USER(), CURRENT_TIMESTAMP()
+            );
+          EXCEPTION WHEN ERROR THEN
+            INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+            VALUES (
+              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+              'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()
+            );
+          END;
+        ELSE
+          INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+          VALUES (
+            exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+            'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()
+          );
+        END IF;
+      END;
+    END;
+  END FOR;
+END;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Passo 3.3: Execução em Escala para bukrs</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Execução</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CALL `gcp-data-lake.sap_governance.sp_apply_sap_rls`(
+  'ce-sap-latam-genai',
+  'cortex7_sap_s4_raw',
+  'bukrs',
+  "'group:gcp-bi-analysts@empresa.com', 'group:gcp-sap-consumers@empresa.com'"
+);</code></pre>
+          </div>
+        </article>
+
+        <!-- Fase 4 -->
+        <article id="guide-fase4" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">4</span> Fase 4: Otimização Física de Tabelas (FinOps)</h2>
+            <span class="code-badge">Physical Storage Tuning</span>
+          </div>
+
+          <p>Tabelas volumosas (ex.: <code>acdoca</code>, <code>bseg</code>, <code>bkpf</code>) devem ter clustering em <code>bukrs</code> para permitir poda de blocos pelo BigQuery:</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Clustering</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">-- Exemplo de re-clusterização para a tabela bkpf
+CREATE OR REPLACE TABLE `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`
+PARTITION BY DATE(cpudt)
+CLUSTER BY bukrs, gjahr, belnr
+AS SELECT * FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`;</code></pre>
+          </div>
+        </article>
+
+        <!-- Fase 5 -->
+        <article id="guide-fase5" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">5</span> Fase 5: Homologação e Matriz de Testes</h2>
+            <span class="code-badge">Security Testing</span>
+          </div>
+
+          <p>Validação dos 7 cenários principais de autorização com os usuários correspondentes:</p>
+
+          <div class="table-responsive">
+            <table class="gcp-table">
+              <thead>
+                <tr>
+                  <th>Cenário de Teste</th>
+                  <th>Usuário Conectado</th>
+                  <th>Consulta Executada</th>
+                  <th>Resultado Esperado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Empresa Única</strong></td>
+                  <td><code>joao.silva@empresa.com</code></td>
+                  <td><code>SELECT DISTINCT bukrs FROM bkpf</code></td>
+                  <td>Retorna apenas <strong>1000</strong>.</td>
+                </tr>
+                <tr>
+                  <td><strong>2. Multi-Empresa</strong></td>
+                  <td><code>maria.costa@empresa.com</code></td>
+                  <td><code>SELECT DISTINCT bukrs FROM bkpf</code></td>
+                  <td>Retorna apenas <strong>1000 e 2000</strong>.</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Intervalo de Empresas</strong></td>
+                  <td><code>carlos.souza@empresa.com</code></td>
+                  <td><code>SELECT DISTINCT bukrs FROM bkpf</code></td>
+                  <td>Retorna apenas o intervalo <strong>[1000, 1050]</strong>.</td>
+                </tr>
+                <tr>
+                  <td><strong>4. Coringa (*)</strong></td>
+                  <td><code>diretor.financas@empresa.com</code></td>
+                  <td><code>SELECT DISTINCT bukrs FROM bkpf</code></td>
+                  <td>Retorna <strong>todas as empresas</strong>.</td>
+                </tr>
+                <tr>
+                  <td><strong>5. Bloqueado / Expirado</strong></td>
+                  <td><code>ex.colaborador@empresa.com</code></td>
+                  <td><code>SELECT COUNT(*) FROM bkpf</code></td>
+                  <td>Retorna <strong>0 linhas</strong>.</td>
+                </tr>
+                <tr>
+                  <td><strong>6. View Downstream</strong></td>
+                  <td><code>joao.silva@empresa.com</code></td>
+                  <td><code>SELECT DISTINCT bukrs FROM vw_lancamentos</code></td>
+                  <td><strong>Mesmo filtro da base</strong> (Security Invoker).</td>
+                </tr>
+                <tr>
+                  <td><strong>7. Bypass de Service Account</strong></td>
+                  <td><code>sa-etl-dataproc@...</code></td>
+                  <td><code>SELECT COUNT(DISTINCT bukrs) FROM bkpf</code></td>
+                  <td>Retorna o <strong>total irrestrito</strong> sem filtro.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <!-- Fase 6 -->
+        <article id="guide-fase6" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">6</span> Fase 6: Operação Contínua, Monitoramento e Rollback</h2>
+            <span class="code-badge">Day-2 Operations</span>
+          </div>
+
+          <h3 class="sub-title">Auditoria Diária de Políticas Ativas</h3>
+          <p>Como o BigQuery não possui visão SQL de <code>ROW_ACCESS_POLICIES</code>, a auditoria é consultada diretamente da tabela histórica de governança <code>sec_rls_audit_log</code> pelo estado mais recente de cada tabela:</p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Monitor</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">WITH latest_status AS (
+  SELECT 
+    target_project,
+    target_dataset,
+    target_table,
+    org_field,
+    policy_name,
+    action,
+    applied_by,
+    applied_at,
+    ROW_NUMBER() OVER (
+      PARTITION BY target_project, target_dataset, target_table, policy_name 
+      ORDER BY applied_at DESC
+    ) AS rn
+  FROM `gcp-data-lake.sap_governance.sec_rls_audit_log`
+)
+SELECT 
+  target_project,
+  target_dataset,
+  target_table,
+  org_field,
+  policy_name,
+  applied_by,
+  applied_at
+FROM latest_status
+WHERE rn = 1 AND action = 'APPLIED'
+ORDER BY target_table;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Detecção Preventiva de Novas Tabelas CDC sem RLS</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Detecção</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  c.table_name,
+  c.column_name
+FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS` c
+WHERE LOWER(c.column_name) = 'bukrs'
+  AND c.table_schema = 'cortex7_sap_s4_raw'
+  AND c.table_name NOT LIKE 'agr_%'
+  AND c.table_name NOT LIKE 'usr%'
+  AND c.table_name NOT LIKE 'adr%'
+  AND c.table_name NOT LIKE 'dd%'
+  AND c.table_name NOT LIKE 't001%'
+  AND c.table_name NOT LIKE 'sec_%'
+  AND c.table_name NOT IN (
+    SELECT target_table 
+    FROM `gcp-data-lake.sap_governance.sec_rls_audit_log`
+    WHERE action = 'APPLIED' AND LOWER(org_field) = 'bukrs'
+  )
+GROUP BY c.table_name, c.column_name;</code></pre>
+          </div>
+
+          <h3 class="sub-title">Rollback Emergencial em Caso de Incidente</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Rollback</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">-- Revogação global em lote para o campo bukrs
+CALL `gcp-data-lake.sap_governance.sp_revoke_sap_rls`('ce-sap-latam-genai', 'cortex7_sap_s4_raw', 'bukrs');</code></pre>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: EXPLICAÇÃO MINUCIOSA DA SOLUÇÃO     -->
+      <!-- ========================================== -->
+      <div id="tab-deepdive" class="tab-content">
+
+        <!-- Topic 1 -->
+        <article id="dd-1" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">1</span> Visão Geral e Fundamentos Arquiteturais</h2>
+            <span class="code-badge">Deep-Dive Técnico</span>
+          </div>
+
+          <p>Esta seção descreve a fundo a mecânica de transposição de regras de segurança entre o ambiente transacional <strong>SAP (ECC / S/4HANA)</strong> e o data warehouse analítico <strong>Google Cloud BigQuery</strong> no âmbito do projeto corporativo de Data Lakehouse com <strong>Google Cloud e SAP</strong>.</p>
+
+          <div class="callout callout-info">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1a73e8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <div>
+              <strong>Princípio Central: Segurança Dinâmica e Desacoplada:</strong> Em vez de criar permissões manuais de usuário por usuário ou duplicar tabelas analíticas para cada empresa, a solução implementa <strong>Row-Level Security (RLS) nativa</strong> no BigQuery baseada em uma tabela de direitos (<em>entitlements</em>) sincronizada de forma contínua com o SAP.
+            </div>
+          </div>
+
+          <h3 class="sub-title">O Paradigma SAP (PFCG) vs O Paradigma BigQuery (RLS)</h3>
+          <p>No SAP, as autorizações são avaliadas pelo kernel da aplicação através de comandos <code>AUTHORITY-CHECK</code> baseados em <strong>Objetos de Autorização</strong> (ex: <code>F_BKPF_BUK</code> para lançamentos contábeis) e campos organizacionais (como <code>BUKRS</code> para Empresa e <code>WERKS</code> para Centro). Os usuários recebem Roles Simples ou Compostas na transação <code>PFCG</code>.</p>
+          <p>No BigQuery, não existe um kernel de aplicação intermediário: as ferramentas de BI (Power BI, Looker, SAP Analytics Cloud) e consultas de analistas conectam-se diretamente via SQL. A segurança de linha precisa ser avaliada pelo motor colunar <strong>Dremel</strong> em tempo de execução via <code>ROW ACCESS POLICY</code>, utilizando a função <code>SESSION_USER()</code> que retorna o e-mail corporativo autenticado (Google Workspace).</p>
+
+          <div class="mermaid">
+graph LR
+    subgraph SAP ["SAP ECC / S4HANA (Transacional)"]
+        A[Usuário: bname] --> B[PFCG: Roles Simples/Compostas]
+        B --> C[Objetos: F_BKPF_BUK]
+        C --> D[Campos Org: BUKRS 1000]
+        E[BAS: ADR6 E-mail]
+    end
+
+    subgraph CDC ["Datastream CDC"]
+        D -->|Replicação Contínua| F[cortex7_sap_s4_raw]
+        E -->|Replicação Contínua| F
+    end
+
+    subgraph BQ ["Google Cloud BigQuery (Analítico)"]
+        F --> G[sp_refresh_sap_entitlements]
+        G --> H[(sec_user_org_entitlements)]
+        H --> I[Row-Level Security Nativo]
+        I --> J[Tabelas: tvko, bkpf, bseg]
+        K[SESSION_USER] --> I
+    end
+
+    style SAP fill:#f8f9fa,stroke:#5f6368
+    style CDC fill:#fef7e0,stroke:#f9ab00
+    style BQ fill:#e8f0fe,stroke:#1a73e8
+          </div>
+        </article>
+
+        <!-- Topic 2 -->
+        <article id="dd-2" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">2</span> Catálogo Completo de Todas as Tabelas da Solução</h2>
+            <span class="code-badge">Dicionário de Dados</span>
+          </div>
+
+          <p>Todas as tabelas e colunas operam estritamente em minúsculas (<code>lowercase</code>) para conformidade total com o padrão corporativo BigQuery e portabilidade de scripts.</p>
+
+          <h3 class="sub-title">2.1 Tabelas de Origem SAP Replicadas via CDC (Dataset: <code>cortex7_sap_s4_raw</code>)</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 140px;">Tabela</th>
+                  <th style="width: 130px;">Origem SAP</th>
+                  <th>Função Técnica na Solução</th>
+                  <th>Colunas Fundamentais Utilizadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>usr02</code></td>
+                  <td>USR02</td>
+                  <td><strong>Controle de Logon e Validade:</strong> Verifica se a conta do usuário existe, não está bloqueada administrativamente e se a data atual está dentro do intervalo de vigência.</td>
+                  <td><code>bname</code>, <code>gltgv</code> (início vigência), <code>gltgb</code> (fim vigência), <code>uflag</code> (flag de bloqueio: 0 = ativo).</td>
+                </tr>
+                <tr>
+                  <td><code>usr21</code></td>
+                  <td>USR21</td>
+                  <td><strong>Ponte de Identidade (User ↔ Person):</strong> Associa o usuário de sistema SAP (<code>bname</code>) às chaves internas do Business Address Services.</td>
+                  <td><code>bname</code>, <code>persnumber</code> (número de pessoa), <code>addrnumber</code> (número de endereço).</td>
+                </tr>
+                <tr>
+                  <td><code>adr6</code></td>
+                  <td>ADR6</td>
+                  <td><strong>E-mail Corporativo Google:</strong> Armazena o endereço de e-mail institucional. Permite correlacionar o usuário SAP diretamente com <code>SESSION_USER()</code>.</td>
+                  <td><code>persnumber</code>, <code>addrnumber</code>, <code>smtp_addr</code> (e-mail corporativo), <code>flgdefault</code> (e-mail principal).</td>
+                </tr>
+                <tr>
+                  <td><code>agr_users</code></td>
+                  <td>AGR_USERS</td>
+                  <td><strong>Atribuição de Papéis:</strong> Mapeia quais roles (simples ou compostas) estão atribuídas ao usuário e em que período de datas.</td>
+                  <td><code>mandt</code>, <code>agr_name</code> (nome da role), <code>uname</code> (usuário SAP), <code>from_dat</code>, <code>to_dat</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>agr_1251</code></td>
+                  <td>AGR_1251</td>
+                  <td><strong>Valores de Autorização:</strong> Contém as regras de segurança concretas gravadas nas roles (objetos, campos e intervalos de valores como empresas e centros).</td>
+                  <td><code>mandt</code>, <code>agr_name</code>, <code>object</code>, <code>field</code> (ex: <code>bukrs</code>), <code>low</code>, <code>high</code>, <code>deleted</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>agr_define</code></td>
+                  <td>AGR_DEFINE</td>
+                  <td><strong>Hierarquia de Roles:</strong> Relaciona roles compostas (<em>composite roles</em>) às suas respectivas roles simples filhas, viabilizando resolução de herança.</td>
+                  <td><code>mandt</code>, <code>agr_name</code> (role pai), <code>parent_agr</code> (role filha).</td>
+                </tr>
+                <tr>
+                  <td><code>tobit</code></td>
+                  <td>TOBIT</td>
+                  <td><strong>Catálogo de Objetos:</strong> Dicionário de dados dos campos pertencentes a cada objeto de segurança do SAP.</td>
+                  <td><code>object</code>, <code>fiel1</code> a <code>fiel10</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>ust12</code></td>
+                  <td>UST12</td>
+                  <td><strong>Autorizações Geradas:</strong> Armazena os valores de perfil em tempo de execução gerados para os perfis técnicos.</td>
+                  <td><code>mandt</code>, <code>objct</code>, <code>auth</code>, <code>field</code>, <code>von</code>, <code>bis</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>t001</code></td>
+                  <td>T001</td>
+                  <td><strong>Mestre de Empresas (Company Codes):</strong> Lista oficial de todas as empresas e filiais válidas. Essencial para desdobrar faixas (<code>1000 a 1050</code>) e coringas (<code>*</code>).</td>
+                  <td><code>mandt</code>, <code>bukrs</code> (código empresa), <code>butxt</code> (nome empresa), <code>land1</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="sub-title">2.2 Tabelas de Governança (Dataset: <code>gcp-data-lake.sap_governance</code>)</h3>
+
+          <h4>A. Tabela Central Materializada: <code>sec_user_org_entitlements</code></h4>
+          <p>Esta tabela é o coração da segurança analítica. Ela consolida os direitos finais calculados para cada colaborador em linhas desnormalizadas. É obrigatoriamente clusterizada por <code>user_email</code> e <code>org_field</code> para garantir leitura instantânea (menos de 50ms) durante a execução de consultas.</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">BigQuery DDL (Lowercase)</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+(
+  user_email STRING NOT NULL OPTIONS(description="E-mail corporativo autenticado (bate com SESSION_USER())"),
+  sap_uname STRING NOT NULL OPTIONS(description="Nome de usuário no SAP (bname)"),
+  org_field STRING NOT NULL OPTIONS(description="Campo organizacional em minúsculas (ex: bukrs, werks, vkorg)"),
+  org_value STRING OPTIONS(description="Valor organizacional explícito e concreto (ex: '1000'). Usado no IN desacoplado"),
+  val_low STRING OPTIONS(description="Valor inferior original na AGR_1251"),
+  val_high STRING OPTIONS(description="Valor superior original na AGR_1251 em caso de faixa"),
+  is_all_access BOOL NOT NULL OPTIONS(description="Flag booleana de superusuário (SAP_ALL ou coringa '*')"),
+  source_roles ARRAY&lt;STRING&gt; OPTIONS(description="Lista de roles SAP que concederam este direito"),
+  updated_at TIMESTAMP NOT NULL OPTIONS(description="Timestamp do último refresh bem-sucedido")
+)
+CLUSTER BY user_email, org_field;</code></pre>
+          </div>
+
+          <div class="callout callout-success">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div>
+              <strong>Por que incluir a coluna <code>org_value</code> desnormalizada?</strong> No SAP, uma permissão de faixa pode ser configurada como <code>low = '1000'</code> e <code>high = '1050'</code>. Ao desdobrar essa faixa em linhas individuais com cada empresa concreta (ex: <code>1000</code>, <code>1010</code>, <code>1020</code>) na coluna <code>org_value</code>, permitimos que a política de RLS utilize uma subquery <strong>Top-Level IN</strong> não correlacionada. Isso elimina o erro de correlação do BigQuery e habilita poda de partições em tabelas particionadas!
+            </div>
+          </div>
+
+          <h4>B. Tabela de Inventário e Parametrização: <code>sec_table_rls_config</code></h4>
+          <p>Tabela de controle onde os administradores de dados registram quais tabelas de negócio devem ser protegidas, qual coluna representa o nível organizacional e quais grupos Google possuem acesso.</p>
+
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">BigQuery DDL</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">CREATE OR REPLACE TABLE `gcp-data-lake.sap_governance.sec_table_rls_config`
+(
+  project_id STRING NOT NULL OPTIONS(description="Projeto GCP onde a tabela protegida reside"),
+  dataset_name STRING NOT NULL OPTIONS(description="Dataset da tabela (ex: cortex7_sap_s4_raw)"),
+  table_name STRING NOT NULL OPTIONS(description="Nome da tabela de negócio (ex: tvko, bkpf, bseg)"),
+  org_field STRING NOT NULL OPTIONS(description="Campo organizacional equivalente (ex: bukrs, vkorg)"),
+  rls_column_name STRING NOT NULL OPTIONS(description="Nome físico da coluna de filtro na tabela de negócio"),
+  filter_type STRING NOT NULL OPTIONS(description="Tipo de operador lógico (IN, EQUAL)"),
+  is_active BOOL NOT NULL OPTIONS(description="Indica se a política de segurança deve ser aplicada"),
+  consumer_grantees STRING NOT NULL OPTIONS(description="Grupo Google ou lista de usuários autorizados no GRANT TO")
+);</code></pre>
+          </div>
+        </article>
+
+        <!-- Topic 3 -->
+        <article id="dd-3" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">3</span> As Três Stored Procedures em Detalhes</h2>
+            <span class="code-badge">Engenharia de Automação</span>
+          </div>
+
+          <p>A esteira de automação é dividida em três procedimentos armazenados com atribuições bem definidas e isoladas:</p>
+
+          <!-- SP 1 -->
+          <div id="dd-3-1" style="margin-top: 24px;">
+            <h3 class="sub-title">3.1 <code>sp_refresh_sap_entitlements(p_target_dataset)</code>: O Motor de Entitlements</h3>
+            <p><strong>Papel:</strong> É a rotina que extrai as informações brutas do SAP, desdobra a lógica de segurança e materializa os resultados na tabela <code>sec_user_org_entitlements</code>.</p>
+            
+            <p><strong>Como funciona internamente (Etapas das CTEs):</strong></p>
+            <ul class="step-list">
+              <li class="step-item">
+                <div class="step-marker">1</div>
+                <div class="step-body">
+                  <h4>Filtro de Contas Válidas (<code>active_users</code>)</h4>
+                  <p>Inspeciona a tabela <code>usr02</code> e seleciona exclusivamente usuários com flag de bloqueio <code>uflag = 0</code> e cuja data de expiração (<code>gltgb</code>) seja maior ou igual a hoje. Usuários demitidos ou inativos são expurgados aqui.</p>
+                </div>
+              </li>
+              <li class="step-item">
+                <div class="step-marker">2</div>
+                <div class="step-body">
+                  <h4>Vínculo de E-mail Corporativo (<code>user_emails</code>)</h4>
+                  <p>Cruza <code>usr02</code> com <code>usr21</code> e <code>adr6</code>. Converte os endereços para minúsculas (<code>LOWER(TRIM(smtp_addr))</code>) e utiliza <code>QUALIFY ROW_NUMBER() OVER(PARTITION BY bname ORDER BY IF(flgdefault='X', 0, 1)) = 1</code> para garantir um e-mail único e prioritário por usuário.</p>
+                </div>
+              </li>
+              <li class="step-item">
+                <div class="step-marker">3</div>
+                <div class="step-body">
+                  <h4>Resolução de Roles Compostas (<code>role_hierarchy</code> &amp; <code>user_roles</code>)</h4>
+                  <p>Desdobra hierarquias da <code>agr_define</code>. Se o usuário tiver uma role composta, a procedure extrai todas as roles simples componentes e valida se o período de concessão na <code>agr_users</code> está ativo.</p>
+                </div>
+              </li>
+              <li class="step-item">
+                <div class="step-marker">4</div>
+                <div class="step-body">
+                  <h4>Coleta da Tabela Mestre de Empresas (<code>master_bukrs</code>)</h4>
+                  <p>Executa uma leitura única em <code>t001</code> retornando todas as empresas cadastradas no ambiente SAP corporativo.</p>
+                </div>
+              </li>
+              <li class="step-item">
+                <div class="step-marker">5</div>
+                <div class="step-body">
+                  <h4>Expansão Determinística de Faixas e Coringas (<code>expanded_bukrs</code>)</h4>
+                  <p>Resolve valores concretos através de três lógicas:</p>
+                  <ul>
+                    <li><strong>Valores Pontuais:</strong> Converte <code>val_low</code> diretamente para <code>org_value</code>.</li>
+                    <li><strong>Faixas Organizacionais:</strong> Faz <code>JOIN master_bukrs ON bukrs BETWEEN val_low AND val_high</code>. Para cada empresa real existente no intervalo, gera uma linha com <code>org_value</code>.</li>
+                    <li><strong>Superusuários e Coringas (<code>*</code> e <code>SAP_ALL</code>):</strong> Marca <code>is_all_access = TRUE</code> e associa todas as empresas da <code>t001</code>.</li>
+                  </ul>
+                </div>
+              </li>
+              <li class="step-item">
+                <div class="step-marker">6</div>
+                <div class="step-body">
+                  <h4>Gravação Atômica</h4>
+                  <p>Agrupa os direitos por usuário e campo organizacional, consolidando as roles de origem em um array (<code>ARRAY_AGG(DISTINCT agr_name)</code>) e carimbando a execução com <code>CURRENT_TIMESTAMP()</code>.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- SP 2 -->
+          <div id="dd-3-2" style="margin-top: 32px;">
+            <h3 class="sub-title">3.2 <code>sp_apply_sap_rls(...)</code>: O Motor de Aplicação de Segurança</h3>
+            <p><strong>Papel:</strong> Lê a configuração da tabela <code>sec_table_rls_config</code> e executa comandos DDL dinâmicos de <code>CREATE OR REPLACE ROW ACCESS POLICY</code> nas tabelas de dados.</p>
+
+            <div class="callout callout-warning">
+              <div class="callout-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#f9ab00"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              </div>
+              <div>
+                <strong>Atenção à Limitação de Subquery Correlacionada do BigQuery:</strong>
+                O BigQuery rejeita políticas de segurança que correlacionam diretamente a coluna da tabela protegida dentro de um <code>WHERE EXISTS (...)</code> (ex: <code>WHERE tvko.bukrs = ent.val_low</code>).
+                <br>Por isso, a <code>sp_apply_sap_rls</code> gera predicados baseados no operador <strong>Top-Level IN</strong> não correlacionado, que é totalmente suportado e possui desempenho superior!
+              </div>
+            </div>
+
+            <p><strong>Estrutura da Cláusula de RLS Gerada Dinamicamente:</strong></p>
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="lang-tag">SQL Gerado Automaticamente pela Procedure</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+              </div>
+              <pre><code class="language-sql">CREATE OR REPLACE ROW ACCESS POLICY `rap_sap_tvko_bukrs`
+ON `ce-sap-latam-genai.cortex7_sap_s4_raw.tvko`
+GRANT TO ('group:genai4sap_finance@felipechagas.altostrat.com')
+FILTER USING (
+  -- Ramo 1: Superusuários (SAP_ALL ou Coringa '*')
+  TRUE IN (
+    SELECT is_all_access 
+    FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+    WHERE user_email = SESSION_USER() 
+      AND org_field = 'bukrs' 
+      AND is_all_access = TRUE
+  )
+  OR
+  -- Ramo 2: Empresas específicas autorizadas ao usuário
+  bukrs IN (
+    SELECT org_value 
+    FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+    WHERE user_email = SESSION_USER() 
+      AND org_field = 'bukrs'
+  )
+);</code></pre>
+            </div>
+
+            <p><strong>Sanitização de Grantees IAM:</strong> No BigQuery, o parâmetro <code>GRANT TO</code> não aceita a palavra <code>group:</code> desacompanhada de aspas (pois o parser confunde com a palavra-chave <code>GROUP BY</code>). A procedure verifica automaticamente se o valor informado possui aspas simples e as adiciona se necessário, prevenindo falhas de compilação.</p>
+          </div>
+
+          <!-- SP 3 -->
+          <div id="dd-3-3" style="margin-top: 32px;">
+            <h3 class="sub-title">3.3 <code>sp_revoke_sap_rls(...)</code>: O Mecanismo de Rollback Seguro</h3>
+            <p><strong>Papel:</strong> Procedimento de emergência que remove as políticas de RLS de uma determinada tabela ou de todo o dataset caso seja necessário realizar uma manutenção em lote ou reverter uma implantação.</p>
+            <p><strong>Por que não usar <code>INFORMATION_SCHEMA.ROW_ACCESS_POLICIES</code>?</strong> No Google Cloud BigQuery, não existe uma visão de catálogo SQL chamada <code>ROW_ACCESS_POLICIES</code> (políticas de acesso a linhas só são listadas via API REST ou rastreadas na auditoria). Por isso, a procedure identifica com segurança as tabelas candidatas cruzando <code>INFORMATION_SCHEMA.COLUMNS</code> com o histórico da tabela de controle <code>sec_rls_audit_log</code> e executa <code>DROP ROW ACCESS POLICY IF EXISTS</code> de forma totalmente idempotente:</p>
+
+            <div class="code-wrapper">
+              <div class="code-header">
+                <span class="lang-tag">SQL Procedure Rollback</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+              </div>
+              <pre><code class="language-sql">CREATE OR REPLACE PROCEDURE `gcp-data-lake.sap_governance.sp_revoke_sap_rls`(
+  target_project STRING,
+  target_dataset STRING,
+  org_column_name STRING
+)
+BEGIN
+  DECLARE exec_id STRING;
+  SET exec_id = GENERATE_UUID();
+
+  -- Identifica as tabelas candidatas a partir de INFORMATION_SCHEMA.COLUMNS e de sec_rls_audit_log
+  FOR target IN (
+    SELECT DISTINCT table_name
+    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`
+    WHERE LOWER(column_name) = LOWER(org_column_name)
+      AND table_schema = target_dataset
+      AND table_name NOT LIKE 'agr_%'
+      AND table_name NOT LIKE 'usr%'
+      AND table_name NOT LIKE 'adr%'
+      AND table_name NOT LIKE 'dd%'
+      AND table_name NOT LIKE 't001%'
+      AND table_name NOT LIKE 'sec_%'
+    UNION DISTINCT
+    SELECT DISTINCT target_table AS table_name
+    FROM `gcp-data-lake.sap_governance.sec_rls_audit_log`
+    WHERE target_project = target_project
+      AND target_dataset = target_dataset
+      AND LOWER(org_field) = LOWER(org_column_name)
+      AND action = 'APPLIED'
+  )
+  DO
+    BEGIN
+      DECLARE policy_name STRING;
+      SET policy_name = FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name));
+
+      BEGIN
+        EXECUTE IMMEDIATE FORMAT("""
+          DROP ROW ACCESS POLICY IF EXISTS %s ON `%s.%s.%s`;
+        """, policy_name, target_project, target_dataset, target.table_name);
+
+        INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+        VALUES (
+          exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+          'REVOKED', policy_name, NULL, SESSION_USER(), CURRENT_TIMESTAMP()
+        );
+      EXCEPTION WHEN ERROR THEN
+        IF CONTAINS_SUBSTR(LOWER(@@error.message), 'drop all') 
+           OR CONTAINS_SUBSTR(LOWER(@@error.message), 'last row access policy') THEN
+          BEGIN
+            EXECUTE IMMEDIATE FORMAT("""
+              DROP ALL ROW ACCESS POLICIES ON `%s.%s.%s`;
+            """, target_project, target_dataset, target.table_name);
+
+            INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+            VALUES (
+              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+              'REVOKED', FORMAT('%s (DROP ALL)', policy_name), NULL, SESSION_USER(), CURRENT_TIMESTAMP()
+            );
+          EXCEPTION WHEN ERROR THEN
+            INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+            VALUES (
+              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+              'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()
+            );
+          END;
+        ELSE
+          INSERT INTO `gcp-data-lake.sap_governance.sec_rls_audit_log`
+          VALUES (
+            exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),
+            'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()
+          );
+        END IF;
+      END;
+    END;
+  END FOR;
+END;</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <!-- Topic 4 -->
+        <article id="dd-4" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">4</span> Operação Contínua (Day-2 Operations)</h2>
+            <span class="code-badge">Guia de Sustentação</span>
+          </div>
+
+          <p>Uma dúvida fundamental da equipe de sustentação e engenharia de dados é: <strong>"O que eu preciso executar no dia a dia quando ocorrerem mudanças nas permissões do SAP?"</strong></p>
+
+          <div class="callout callout-success">
+            <div class="callout-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#1e8e3e"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div>
+              <strong>Resposta Direta e Conclusiva:</strong>
+              Para refletir qualquer alteração de roles, criação de usuários ou concessão de empresas feita no SAP, <strong>VOCÊ PRECISA APENAS AGENDAR OU EXECUTAR A PROCEDURE <code>sp_refresh_sap_entitlements()</code></strong>.
+              <br><br>
+              <strong>Você NÃO precisa:</strong>
+              <ul style="margin: 6px 0 0 16px; padding: 0;">
+                <li>❌ NÃO precisa executar a <code>sp_apply_sap_rls()</code> novamente.</li>
+                <li>❌ NÃO precisa recriar as políticas de segurança nas tabelas de dados.</li>
+                <li>❌ NÃO precisa reiniciar conectores ou alterar views analíticas.</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3 class="sub-title">Comparativo dos Cenários de Operação</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Evento no Negócio</th>
+                  <th style="width: 35%;">O que acontece sob o capô</th>
+                  <th style="width: 40%;">Ação Requerida da Equipe de Dados</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Colaborador recebe nova empresa no SAP</strong></td>
+                  <td>O conector CDC replica as alterações das tabelas <code>agr_users</code> e <code>agr_1251</code> para o dataset <code>cortex7_sap_s4_raw</code> em segundos.</td>
+                  <td><strong>Nenhuma ação manual!</strong> A Scheduled Query roda a <code>sp_refresh_sap_entitlements()</code> periodicamente (ex: a cada 1 hora). Assim que ela termina, o usuário já vê os novos dados no BigQuery.</td>
+                </tr>
+                <tr>
+                  <td><strong>Colaborador é desligado da organização</strong></td>
+                  <td>A equipe do SAP bloqueia o usuário na transação <code>SU01</code> (seta <code>uflag != 0</code> na <code>usr02</code>). O CDC replica a linha.</td>
+                  <td>No próximo refresh da <code>sp_refresh_sap_entitlements()</code>, o e-mail do usuário é removido de <code>sec_user_org_entitlements</code>. Pelo princípio de <em>Deny by Default</em>, o acesso é revogado imediatamente.</td>
+                </tr>
+                <tr>
+                  <td><strong>Uma NOVA tabela de negócio é adicionada ao BigQuery</strong> (ex: <code>vbak</code> ou <code>ekko</code>)</td>
+                  <td>A tabela foi replicada via CDC, mas ainda não possui nenhuma política de RLS vinculada.</td>
+                  <td>
+                    <strong>Ação em 2 passos:</strong>
+                    <br>1. Inserir um registro com os metadados da tabela na <code>sec_table_rls_config</code>.
+                    <br>2. Executar a <code>sp_apply_sap_rls(...)</code> para a nova tabela uma única vez.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="sub-title">Como Agendar o Refresh Automático no BigQuery</h3>
+          <p>Para manter os acessos sempre sincronizados sem intervenção humana, configure uma <strong>Scheduled Query</strong> nativa no console do BigQuery:</p>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">Scheduled Query (Recorrência: A cada 1 hora)</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">-- Comando agendado para rodar a cada 60 minutos
+CALL `gcp-data-lake.sap_governance.sp_refresh_sap_entitlements`('gcp-data-lake.sap_governance');</code></pre>
+          </div>
+        </article>
+
+        <!-- Topic 5 -->
+        <article id="dd-5" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">5</span> Tratamento de Casos Críticos de Negócio SAP</h2>
+            <span class="code-badge">Regras de Exceção</span>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Cenário Crítico SAP</th>
+                  <th style="width: 35%;">Como o SAP gerencia</th>
+                  <th style="width: 40%;">Implementação na Solução BigQuery</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Superusuário (<code>SAP_ALL</code>)</strong></td>
+                  <td>O usuário possui perfil mestre irrestrito, ignorando verificações de objetos.</td>
+                  <td>A procedure detecta <code>agr_name = 'sap_all'</code> e define <code>is_all_access = TRUE</code>. Na política de RLS, o predicado <code>TRUE IN (SELECT is_all_access ...)</code> é satisfeito de imediato, permitindo leitura completa sem restrição de empresa.</td>
+                </tr>
+                <tr>
+                  <td><strong>Coringa Geral (<code>low = '*'</code>)</strong></td>
+                  <td>A role concede acesso a qualquer empresa presente ou futura do ambiente.</td>
+                  <td>A procedure mapeia o coringa, expande para todas as empresas da tabela <code>t001</code> e sinaliza <code>is_all_access = TRUE</code>.</td>
+                </tr>
+                <tr>
+                  <td><strong>Faixas Numéricas (ex: <code>1000 a 1050</code>)</strong></td>
+                  <td>O SAP grava os limites inferior e superior na tabela <code>agr_1251</code>.</td>
+                  <td>A procedure faz um <code>JOIN master_bukrs ON bukrs BETWEEN low AND high</code>. Cada empresa real do intervalo vira uma linha na coluna <code>org_value</code>, evitando filtros lentos de range na consulta analítica.</td>
+                </tr>
+                <tr>
+                  <td><strong>Usuário sem E-mail na ADR6</strong></td>
+                  <td>Usuários técnicos de sistema (ex: <code>ALEREMOTE</code>, <code>SAP*</code>) ou cadastros incompletos.</td>
+                  <td>A CTE <code>user_emails</code> exige e-mail corporativo válido. Usuários sem e-mail não são carregados na tabela de segurança, impedindo personificação em ferramentas de BI.</td>
+                </tr>
+                <tr>
+                  <td><strong>Princípio do <em>Deny by Default</em></strong></td>
+                  <td>Se o usuário não tiver autorização no SAP, a transação retorna código de erro 4 ou 12.</td>
+                  <td>Se o e-mail de <code>SESSION_USER()</code> não existir na <code>sec_user_org_entitlements</code>, as subqueries retornam conjunto vazio e o BigQuery entrega <strong>0 linhas</strong> ao usuário, com total sigilo.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <!-- Topic 6 -->
+        <article id="dd-6" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">6</span> Governança, FinOps e Otimização de Performance</h2>
+            <span class="code-badge">Arquitetura de Alta Eficiência</span>
+          </div>
+
+          <p>A arquitetura foi meticulosamente projetada para minimizar custos de processamento (FinOps) e garantir que consultas analíticas continuem velozes mesmo sobre tabelas com centenas de milhões de linhas (como <code>bseg</code> e <code>bkpf</code>).</p>
+
+          <h3 class="sub-title">Três Pilares de Otimização no BigQuery</h3>
+          <ul class="step-list">
+            <li class="step-item">
+              <div class="step-marker">⚡</div>
+              <div class="step-body">
+                <h4>1. Clustering Estratégico por <code>user_email</code> e <code>org_field</code></h4>
+                <p>A tabela <code>sec_user_org_entitlements</code> é clusterizada nas duas colunas utilizadas no predicado <code>WHERE</code> da política. Quando o BigQuery executa a subquery para o usuário da sessão, ele realiza um salto direto nos blocos de metadados, processando menos de 10 KB de dados em frações de milissegundo.</p>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-marker">⚡</div>
+              <div class="step-body">
+                <h4>2. Avaliação Desacoplada (Non-Correlated Subquery)</h4>
+                <p>Diferente de uma subquery correlacionada (que forçaria o motor a inspecionar linha a linha da tabela transacional externa), a subquery desacoplada é executada <strong>apenas uma vez no início do plano de consulta</strong>. O otimizador Dremel resolve a lista de empresas autorizadas como uma constante literal (ex: <code>['1000', '1010']</code>) antes de ler os dados de fato.</p>
+              </div>
+            </li>
+            <li class="step-item">
+              <div class="step-marker">⚡</div>
+              <div class="step-body">
+                <h4>3. Preservação de Partition &amp; Cluster Pruning</h4>
+                <p>Como o filtro final se comporta como <code>WHERE bukrs IN ('1000', '1010')</code>, se a tabela de negócio for particionada ou clusterizada por <code>bukrs</code>, o BigQuery descarta imediatamente todos os blocos de dados das empresas às quais o usuário não tem acesso. Isso reduz a quantidade de dados escaneados em até <strong>98%</strong>, diminuindo diretamente o custo financeiro da consulta.</p>
+              </div>
+            </li>
+          </ul>
+        </article>
+
+        <!-- Topic 7 -->
+        <article id="dd-7" class="gcp-card">
+          <div class="section-header">
+            <h2 class="section-title"><span class="step-number">7</span> Auditoria, Diagnóstico e Consultas Operacionais</h2>
+            <span class="code-badge">Painel de Controle</span>
+          </div>
+
+          <p>Utilize as consultas pré-formatadas abaixo para auditar a segurança e diagnosticar o ambiente:</p>
+
+          <h3 class="sub-title">7.1 Inspecionar Direitos Concedidos a um Colaborador Específico</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Auditoria de Acesso</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  user_email,
+  sap_uname,
+  org_field,
+  org_value,
+  is_all_access,
+  source_roles,
+  updated_at
+FROM `gcp-data-lake.sap_governance.sec_user_org_entitlements`
+WHERE user_email = 'analista_fiscal@empresa.com'
+ORDER BY org_field, org_value;</code></pre>
+          </div>
+
+          <h3 class="sub-title">7.2 Identificar Usuários Ativos no SAP sem E-mail Cadastrado na ADR6</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Diagnóstico de Identidade</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  LOWER(u.bname) AS sap_uname,
+  u.gltgv,
+  u.gltgb
+FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u
+LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` u21 ON LOWER(u.bname) = LOWER(u21.bname)
+LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a ON u21.addrnumber = a.addrnumber AND u21.persnumber = a.persnumber
+WHERE (u.uflag = 0 OR u.uflag IS NULL)
+  AND (u.gltgb IS NULL OR u.gltgb >= CURRENT_DATE())
+  AND a.smtp_addr IS NULL;</code></pre>
+          </div>
+
+          <h3 class="sub-title">7.3 Inventário Global de Políticas de RLS em Vigor</h3>
+          <div class="code-wrapper">
+            <div class="code-header">
+              <span class="lang-tag">SQL Catálogo de RLS</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
+            </div>
+            <pre><code class="language-sql">SELECT 
+  target_project AS project_id,
+  target_dataset AS dataset_name,
+  target_table AS table_name,
+  org_field,
+  policy_name AS row_access_policy_name,
+  action,
+  applied_by,
+  applied_at
+FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`
+WHERE action IN ('APPLIED', 'REVOKED')
+QUALIFY ROW_NUMBER() OVER (PARTITION BY target_table, org_field ORDER BY applied_at DESC) = 1
+ORDER BY target_table;</code></pre>
+          </div>
+        </article>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Google Cloud Style Footer (100% Light) -->
+  <footer class="gcp-footer">
+    <div>Google Cloud BigQuery Architecture &bull; Solução de Referência <strong>Google Cloud e SAP</strong> &bull; Versão 1.0</div>
+    <div style="margin-top: 4px; color: #80868b; font-size: 12px;">Documentação Técnica em conformidade com Google Cloud Architecture Framework &amp; SAP Security Best Practices</div>
+  </footer>
+
+  <script>
+    // Inicialização do Mermaid com tema 100% Light com paleta Google Cloud
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        fontFamily: 'Roboto, Google Sans, sans-serif',
+        fontSize: '13px',
+        primaryColor: '#e8f0fe',
+        primaryBorderColor: '#1a73e8',
+        primaryTextColor: '#1a73e8',
+        secondaryColor: '#e6f4ea',
+        secondaryBorderColor: '#1e8e3e',
+        secondaryTextColor: '#0d652d',
+        tertiaryColor: '#fef7e0',
+        tertiaryBorderColor: '#f9ab00',
+        tertiaryTextColor: '#794d00',
+        background: '#ffffff',
+        lineColor: '#5f6368',
+        textColor: '#202124',
+        mainBkg: '#ffffff',
+        edgeLabelBackground: '#ffffff',
+        clusterBkg: '#f8f9fa',
+        clusterBorder: '#dadce0',
+        nodeBorder: '#dadce0'
+      },
+      flowchart: {
+        curve: 'basis',
+        useMaxWidth: true,
+        htmlLabels: true
+      }
+    });
+
+    // Função para Alternar Abas (Tabs)
+    function switchTab(tabId, btnElement) {
+      // Esconder todas as abas
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      // Desativar botões
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      // Ativar aba selecionada
+      document.getElementById(tabId).classList.add('active');
+      btnElement.classList.add('active');
+
+      // Alternar TOC correspondente na barra lateral
+      if (tabId === 'tab-sdd') {
+        document.getElementById('toc-sdd-content').style.display = 'block';
+        document.getElementById('toc-guide-content').style.display = 'none';
+        document.getElementById('toc-deepdive-content').style.display = 'none';
+      } else if (tabId === 'tab-guide') {
+        document.getElementById('toc-sdd-content').style.display = 'none';
+        document.getElementById('toc-guide-content').style.display = 'block';
+        document.getElementById('toc-deepdive-content').style.display = 'none';
+      } else if (tabId === 'tab-deepdive') {
+        document.getElementById('toc-sdd-content').style.display = 'none';
+        document.getElementById('toc-guide-content').style.display = 'none';
+        document.getElementById('toc-deepdive-content').style.display = 'block';
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Função de Cópia de Código
+    function copyCode(button) {
+      const codeBlock = button.closest('.code-wrapper').querySelector('code');
+      const textToCopy = codeBlock.innerText;
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const originalText = button.innerText;
+        button.innerText = 'Copiado!';
+        button.style.backgroundColor = '#e6f4ea';
+        button.style.borderColor = '#ceead6';
+        button.style.color = '#137333';
+
+        setTimeout(() => {
+          button.innerText = originalText;
+          button.style.backgroundColor = '';
+          button.style.borderColor = '';
+          button.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Filtro Rápido na Barra Lateral
+    function filterSidebar() {
+      const query = document.getElementById('quickFilter').value.toLowerCase();
+      const currentToc = document.querySelector('#toc-sdd-content:not([style*="display: none"])') 
+                      || document.querySelector('#toc-guide-content:not([style*="display: none"])')
+                      || document.querySelector('#toc-deepdive-content:not([style*="display: none"])');
+      if (!currentToc) return;
+      const links = currentToc.querySelectorAll('.toc-link, .toc-sublink');
+
+      links.forEach(link => {
+        const text = link.innerText.toLowerCase();
+        if (text.includes(query)) {
+          link.style.display = 'block';
+        } else {
+          link.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

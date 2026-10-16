@@ -1,0 +1,1262 @@
+{
+  "active_connection_id": "conn-copel-s4",
+  "connections": [
+    {
+      "id": "conn-copel-s4",
+      "name": "Copel SAP S/4HANA & BigQuery (Ativo)",
+      "environment": "PRODUCTION / HOMOLOG",
+      "auth_mode": "oauth_adc",
+      "project_id": "ce-sap-latam-genai",
+      "raw_dataset": "cortex7_sap_s4_raw",
+      "governance_dataset": "cortex7_sap_s4_security",
+      "location": "US",
+      "corporate_domain": "@felipechagas.altostrat.com",
+      "default_grantees": "",
+      "bypass_service_accounts": [
+        "%@ce-sap-latam-genai.iam.gserviceaccount.com",
+        "%@gcp-data-lake.iam.gserviceaccount.com"
+      ],
+      "bypass_admins": [
+        "admin@felipechagas.altostrat.com"
+      ],
+      "oauth_client_id": "copel-sap-rls-governance.apps.googleusercontent.com",
+      "oauth_user_email": "admin@felipechagas.altostrat.com",
+      "service_account_email": null,
+      "has_service_account_key": false,
+      "last_tested_at": "2026-10-13T12:39:24Z",
+      "last_status": "FAILED"
+    }
+  ],
+  "service_account_keys": {},
+  "oauth_tokens": {},
+  "setup_runs": [
+    {
+      "run_id": "run-1791425500146",
+      "step_id": "step_4_procedures",
+      "step_number": 4,
+      "step_title": "Deploy das Stored Procedures de Automação",
+      "status": "SUCCESS",
+      "executed_at": "2026-10-08T02:11:40Z",
+      "executed_by": "admin@felipechagas.altostrat.com",
+      "job_meta": {
+        "job_id": "6880b9a1-3c5b-466d-8667-1733f809bc47",
+        "location": "US",
+        "elapsed_ms": 4584,
+        "total_bytes_processed": 0,
+        "total_bytes_billed": 0,
+        "num_dml_affected_rows": null,
+        "row_count": 0,
+        "statement_type": "SCRIPT"
+      },
+      "logs": [
+        {
+          "timestamp": "02:11:35.562",
+          "level": "INFO",
+          "message": "Iniciando execução do [Deploy das Stored Procedures de Automação] no projeto 'ce-sap-latam-genai'...",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:11:35.562",
+          "level": "INFO",
+          "message": "Credencial ativa: Google OAuth / ADC (admin@felipechagas.altostrat.com)",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:11:35.562",
+          "level": "SQL",
+          "message": "Submetendo job ao motor BigQuery:\n-- PASSO 4: Deploy das Stored Procedures (Refresh Entitlements, Apply RLS e Revoke RLS)\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_refresh_sap_entitlements`()\nBEGIN\n  CREATE OR REPLACE TABLE `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n  CLUSTER BY user_email, org_field\n  AS\n  WITH active_users AS (\n    SELECT\n      LOWER(TRIM(a.smtp_addr)) AS user_email,\n      u.bname AS sap_uname\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` up\n      ON u.bname = up.bname\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a\n      ON up.persnumber = a.persnumber AND up.addrnumber = a.addrnumber\n    WHERE (u.uflag IS NULL OR u.uflag = 0)\n      AND CURRENT_DATE() BETWEEN COALESCE(u.gltgv, DATE '1900-01-01') AND COALESCE(u.gltgb, DATE '9999-12-31')\n      AND a.smtp_addr IS NOT NULL\n  ),\n  user_roles_expanded AS (\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      COALESCE(comp.child_agr, r.agr_name) AS effective_role\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_users` r\n      ON au.sap_uname = r.uname\n    LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_agrs` comp\n      ON r.agr_name = comp.agr_name\n    WHERE CURRENT_DATE() BETWEEN COALESCE(r.from_dat, DATE '1900-01-01') AND COALESCE(r.to_dat, DATE '9999-12-31')\n  ),\n  raw_org_permissions AS (\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(REGEXP_REPLACE(a1252.varbl, r'^\\$', '')) AS org_field,\n      TRIM(a1252.low) AS val_low,\n      TRIM(a1252.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1252` a1252\n      ON ur.effective_role = a1252.agr_name\n    WHERE a1252.varbl IS NOT NULL AND a1252.varbl != ''\n    UNION ALL\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(TRIM(a1251.field)) AS org_field,\n      TRIM(a1251.low) AS val_low,\n      TRIM(a1251.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1251` a1251\n      ON ur.effective_role = a1251.agr_name\n    WHERE LOWER(a1251.field) IN ('bukrs', 'werks', 'vkorg', 'ekorg', 'gsber', 'prctr')\n      AND NOT STARTS_WITH(TRIM(a1251.low), '$')\n    UNION ALL\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      'PROFILE:SAP_ALL' AS effective_role,\n      '*' AS org_field,\n      '*' AS val_low,\n      CAST(NULL AS STRING) AS val_high\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.ust04` p\n      ON au.sap_uname = p.bname\n    WHERE UPPER(p.profile) IN ('SAP_ALL', 'SAP_NEW')\n  ),\n  master_bukrs AS (\n    SELECT DISTINCT bukrs AS org_value FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.t001`\n    UNION DISTINCT\n    SELECT DISTINCT bukrs FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`\n  ),\n  expanded_values AS (\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      p.val_low AS org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low != '*' AND (p.val_high IS NULL OR p.val_high = '')\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      m.org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    JOIN master_bukrs m\n      ON p.org_field = 'bukrs' AND m.org_value BETWEEN p.val_low AND p.val_high\n    WHERE p.val_high IS NOT NULL AND p.val_high != ''\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      CAST(NULL AS STRING) AS org_value, p.val_low, p.val_high,\n      TRUE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low = '*' OR p.org_field = '*'\n  )\n  SELECT\n    user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access,\n    ARRAY_AGG(DISTINCT effective_role) AS source_roles,\n    CURRENT_TIMESTAMP() AS updated_at\n  FROM expanded_values\n  WHERE (org_value IS NOT NULL AND org_value != '') OR is_all_access = TRUE\n  GROUP BY user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_apply_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING,\n  consumer_grantees STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  DECLARE formatted_grantees STRING;\n  DECLARE dynamic_grantees STRING;\n  SET exec_id = GENERATE_UUID();\n  SET formatted_grantees = TRIM(COALESCE(consumer_grantees, ''));\n\n  -- Se consumer_grantees estiver vazio, busca dinamicamente todos os usuários com acesso ativo àquele nível org na tabela de entitlements\n  IF formatted_grantees = '' OR formatted_grantees = \"''\" OR formatted_grantees = '\"\"' THEN\n    EXECUTE IMMEDIATE FORMAT(\"\"\"\n      SELECT STRING_AGG(DISTINCT CONCAT(\"'user:\", LOWER(user_email), \"'\"), ', ')\n      FROM `%s.%s.sec_user_org_entitlements`\n      WHERE (LOWER(org_field) = LOWER('%s') OR org_field = '*')\n        AND user_email IS NOT NULL \n        AND user_email != ''\n        AND NOT ENDS_WITH(LOWER(user_email), '.sap-ag.de')\n        AND (ENDS_WITH(LOWER(user_email), '@felipechagas.altostrat.com') OR ENDS_WITH(LOWER(user_email), '@google.com') OR ENDS_WITH(LOWER(user_email), '@copel.com'))\n    \"\"\", target_project, 'cortex7_sap_s4_security', org_column_name)\n    INTO dynamic_grantees;\n\n    IF dynamic_grantees IS NOT NULL AND dynamic_grantees != '' THEN\n      SET formatted_grantees = dynamic_grantees;\n    ELSE\n      -- Fallback para admin corporativo caso nenhum usuário possua autorização mapeada\n      SET formatted_grantees = \"'user:admin@felipechagas.altostrat.com'\";\n    END IF;\n  ELSE\n    IF NOT (STARTS_WITH(formatted_grantees, \"'\") OR STARTS_WITH(formatted_grantees, '\"')) THEN\n      SET formatted_grantees = FORMAT(\"'%s'\", formatted_grantees);\n    END IF;\n  END IF;\n\n  FOR target IN (\n    SELECT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    GROUP BY table_name\n  )\n  DO\n    BEGIN\n      EXECUTE IMMEDIATE FORMAT(\"\"\"\n        CREATE OR REPLACE ROW ACCESS POLICY rap_auto_%s_%s\n        ON `%s.%s.%s`\n        GRANT TO (%s)\n        FILTER USING (\n          SESSION_USER() LIKE '%%@ce-sap-latam-genai.iam.gserviceaccount.com'\n          OR SESSION_USER() IN ('admin@felipechagas.altostrat.com')\n          OR TRUE IN (\n            SELECT is_all_access\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND (org_field = '%s' OR org_field = '*')\n              AND is_all_access = TRUE\n          )\n          OR %s IN (\n            SELECT org_value\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND org_field = '%s'\n          )\n        );\n      \"\"\",\n        LOWER(org_column_name), LOWER(target.table_name),\n        target_project, target_dataset, target.table_name,\n        formatted_grantees,\n        LOWER(org_column_name), LOWER(org_column_name), LOWER(org_column_name)\n      );\n\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'APPLIED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    EXCEPTION WHEN ERROR THEN\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'FAILED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    END;\n  END FOR;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_revoke_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  SET exec_id = GENERATE_UUID();\n\n  FOR target IN (\n    SELECT DISTINCT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    UNION DISTINCT\n    SELECT DISTINCT target_table AS table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n    WHERE target_project = target_project\n      AND target_dataset = target_dataset\n      AND LOWER(org_field) = LOWER(org_column_name)\n      AND action = 'APPLIED'\n  )\n  DO\n    BEGIN\n      DECLARE policy_name STRING;\n      SET policy_name = FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name));\n\n      BEGIN\n        EXECUTE IMMEDIATE FORMAT(\"\"\"\n          DROP ROW ACCESS POLICY IF EXISTS %s ON `%s.%s.%s`;\n        \"\"\", policy_name, target_project, target_dataset, target.table_name);\n\n        INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n        VALUES (\n          exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n          'REVOKED', policy_name, NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n        );\n      EXCEPTION WHEN ERROR THEN\n        IF CONTAINS_SUBSTR(LOWER(@@error.message), 'drop all') \n           OR CONTAINS_SUBSTR(LOWER(@@error.message), 'last row access policy') THEN\n          BEGIN\n            EXECUTE IMMEDIATE FORMAT(\"\"\"\n              DROP ALL ROW ACCESS POLICIES ON `%s.%s.%s`;\n            \"\"\", target_project, target_dataset, target.table_name);\n\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'REVOKED', FORMAT('%s (DROP ALL)', policy_name), NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          EXCEPTION WHEN ERROR THEN\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          END;\n        ELSE\n          INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n          VALUES (\n            exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n            'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n          );\n        END IF;\n      END;\n    END;\n  END FOR;\nEND;",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:11:40.146",
+          "level": "SUCCESS",
+          "message": "Job BigQuery concluído com sucesso! Job ID: 6880b9a1-3c5b-466d-8667-1733f809bc47 | Tempo: 4584 ms | Bytes processados: 0",
+          "meta": {
+            "job_id": "6880b9a1-3c5b-466d-8667-1733f809bc47",
+            "location": "US",
+            "elapsed_ms": 4584,
+            "total_bytes_processed": 0,
+            "total_bytes_billed": 0,
+            "num_dml_affected_rows": null,
+            "row_count": 0,
+            "statement_type": "SCRIPT"
+          }
+        }
+      ],
+      "preview_rows": []
+    },
+    {
+      "run_id": "run-1791425123501",
+      "step_id": "step_4_procedures",
+      "step_number": 4,
+      "step_title": "Deploy das Stored Procedures de Automação",
+      "status": "SUCCESS",
+      "executed_at": "2026-10-08T02:05:23Z",
+      "executed_by": "admin@felipechagas.altostrat.com",
+      "job_meta": {
+        "job_id": "3520e495-6bf2-49fc-9bab-be7eb3ea58c4",
+        "location": "US",
+        "elapsed_ms": 4262,
+        "total_bytes_processed": 0,
+        "total_bytes_billed": 0,
+        "num_dml_affected_rows": null,
+        "row_count": 0,
+        "statement_type": "SCRIPT"
+      },
+      "logs": [
+        {
+          "timestamp": "02:05:19.239",
+          "level": "INFO",
+          "message": "Iniciando execução do [Deploy das Stored Procedures de Automação] no projeto 'ce-sap-latam-genai'...",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:05:19.239",
+          "level": "INFO",
+          "message": "Credencial ativa: Google OAuth / ADC (admin@felipechagas.altostrat.com)",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:05:19.239",
+          "level": "SQL",
+          "message": "Submetendo job ao motor BigQuery:\n-- PASSO 4: Deploy das Stored Procedures (Refresh Entitlements, Apply RLS e Revoke RLS)\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_refresh_sap_entitlements`()\nBEGIN\n  CREATE OR REPLACE TABLE `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n  CLUSTER BY user_email, org_field\n  AS\n  WITH active_users AS (\n    SELECT\n      LOWER(TRIM(a.smtp_addr)) AS user_email,\n      u.bname AS sap_uname\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` up\n      ON u.bname = up.bname\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a\n      ON up.persnumber = a.persnumber AND up.addrnumber = a.addrnumber\n    WHERE (u.uflag IS NULL OR u.uflag = 0)\n      AND CURRENT_DATE() BETWEEN COALESCE(u.gltgv, DATE '1900-01-01') AND COALESCE(u.gltgb, DATE '9999-12-31')\n      AND a.smtp_addr IS NOT NULL\n  ),\n  user_roles_expanded AS (\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      COALESCE(comp.child_agr, r.agr_name) AS effective_role\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_users` r\n      ON au.sap_uname = r.uname\n    LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_agrs` comp\n      ON r.agr_name = comp.agr_name\n    WHERE CURRENT_DATE() BETWEEN COALESCE(r.from_dat, DATE '1900-01-01') AND COALESCE(r.to_dat, DATE '9999-12-31')\n  ),\n  raw_org_permissions AS (\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(REGEXP_REPLACE(a1252.varbl, r'^\\$', '')) AS org_field,\n      TRIM(a1252.low) AS val_low,\n      TRIM(a1252.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1252` a1252\n      ON ur.effective_role = a1252.agr_name\n    WHERE a1252.varbl IS NOT NULL AND a1252.varbl != ''\n    UNION ALL\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(TRIM(a1251.field)) AS org_field,\n      TRIM(a1251.low) AS val_low,\n      TRIM(a1251.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1251` a1251\n      ON ur.effective_role = a1251.agr_name\n    WHERE LOWER(a1251.field) IN ('bukrs', 'werks', 'vkorg', 'ekorg', 'gsber', 'prctr')\n      AND NOT STARTS_WITH(TRIM(a1251.low), '$')\n    UNION ALL\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      'PROFILE:SAP_ALL' AS effective_role,\n      '*' AS org_field,\n      '*' AS val_low,\n      CAST(NULL AS STRING) AS val_high\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.ust04` p\n      ON au.sap_uname = p.bname\n    WHERE UPPER(p.profile) IN ('SAP_ALL', 'SAP_NEW')\n  ),\n  master_bukrs AS (\n    SELECT DISTINCT bukrs AS org_value FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.t001`\n    UNION DISTINCT\n    SELECT DISTINCT bukrs FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`\n  ),\n  expanded_values AS (\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      p.val_low AS org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low != '*' AND (p.val_high IS NULL OR p.val_high = '')\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      m.org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    JOIN master_bukrs m\n      ON p.org_field = 'bukrs' AND m.org_value BETWEEN p.val_low AND p.val_high\n    WHERE p.val_high IS NOT NULL AND p.val_high != ''\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      CAST(NULL AS STRING) AS org_value, p.val_low, p.val_high,\n      TRUE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low = '*' OR p.org_field = '*'\n  )\n  SELECT\n    user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access,\n    ARRAY_AGG(DISTINCT effective_role) AS source_roles,\n    CURRENT_TIMESTAMP() AS updated_at\n  FROM expanded_values\n  WHERE (org_value IS NOT NULL AND org_value != '') OR is_all_access = TRUE\n  GROUP BY user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_apply_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING,\n  consumer_grantees STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  DECLARE formatted_grantees STRING;\n  DECLARE dynamic_grantees STRING;\n  SET exec_id = GENERATE_UUID();\n  SET formatted_grantees = TRIM(COALESCE(consumer_grantees, ''));\n\n  -- Se consumer_grantees estiver vazio, busca dinamicamente todos os usuários com acesso ativo àquele nível org na tabela de entitlements\n  IF formatted_grantees = '' OR formatted_grantees = \"''\" OR formatted_grantees = '\"\"' THEN\n    EXECUTE IMMEDIATE FORMAT(\"\"\"\n      SELECT STRING_AGG(DISTINCT CONCAT(\"'user:\", LOWER(user_email), \"'\"), ', ')\n      FROM `%s.%s.sec_user_org_entitlements`\n      WHERE (LOWER(org_field) = LOWER('%s') OR org_field = '*')\n        AND user_email IS NOT NULL AND user_email != ''\n    \"\"\", target_project, 'cortex7_sap_s4_security', org_column_name)\n    INTO dynamic_grantees;\n\n    IF dynamic_grantees IS NOT NULL AND dynamic_grantees != '' THEN\n      SET formatted_grantees = dynamic_grantees;\n    ELSE\n      -- Fallback para admin corporativo caso nenhum usuário possua autorização mapeada\n      SET formatted_grantees = \"'user:admin@felipechagas.altostrat.com'\";\n    END IF;\n  ELSE\n    IF NOT (STARTS_WITH(formatted_grantees, \"'\") OR STARTS_WITH(formatted_grantees, '\"')) THEN\n      SET formatted_grantees = FORMAT(\"'%s'\", formatted_grantees);\n    END IF;\n  END IF;\n\n  FOR target IN (\n    SELECT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    GROUP BY table_name\n  )\n  DO\n    BEGIN\n      EXECUTE IMMEDIATE FORMAT(\"\"\"\n        CREATE OR REPLACE ROW ACCESS POLICY rap_auto_%s_%s\n        ON `%s.%s.%s`\n        GRANT TO (%s)\n        FILTER USING (\n          SESSION_USER() LIKE '%%@ce-sap-latam-genai.iam.gserviceaccount.com'\n          OR SESSION_USER() IN ('admin@felipechagas.altostrat.com')\n          OR TRUE IN (\n            SELECT is_all_access\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND (org_field = '%s' OR org_field = '*')\n              AND is_all_access = TRUE\n          )\n          OR %s IN (\n            SELECT org_value\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND org_field = '%s'\n          )\n        );\n      \"\"\",\n        LOWER(org_column_name), LOWER(target.table_name),\n        target_project, target_dataset, target.table_name,\n        formatted_grantees,\n        LOWER(org_column_name), LOWER(org_column_name), LOWER(org_column_name)\n      );\n\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'APPLIED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    EXCEPTION WHEN ERROR THEN\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'FAILED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    END;\n  END FOR;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_revoke_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  SET exec_id = GENERATE_UUID();\n\n  FOR target IN (\n    SELECT DISTINCT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    UNION DISTINCT\n    SELECT DISTINCT target_table AS table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n    WHERE target_project = target_project\n      AND target_dataset = target_dataset\n      AND LOWER(org_field) = LOWER(org_column_name)\n      AND action = 'APPLIED'\n  )\n  DO\n    BEGIN\n      DECLARE policy_name STRING;\n      SET policy_name = FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name));\n\n      BEGIN\n        EXECUTE IMMEDIATE FORMAT(\"\"\"\n          DROP ROW ACCESS POLICY IF EXISTS %s ON `%s.%s.%s`;\n        \"\"\", policy_name, target_project, target_dataset, target.table_name);\n\n        INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n        VALUES (\n          exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n          'REVOKED', policy_name, NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n        );\n      EXCEPTION WHEN ERROR THEN\n        IF CONTAINS_SUBSTR(LOWER(@@error.message), 'drop all') \n           OR CONTAINS_SUBSTR(LOWER(@@error.message), 'last row access policy') THEN\n          BEGIN\n            EXECUTE IMMEDIATE FORMAT(\"\"\"\n              DROP ALL ROW ACCESS POLICIES ON `%s.%s.%s`;\n            \"\"\", target_project, target_dataset, target.table_name);\n\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'REVOKED', FORMAT('%s (DROP ALL)', policy_name), NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          EXCEPTION WHEN ERROR THEN\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          END;\n        ELSE\n          INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n          VALUES (\n            exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n            'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n          );\n        END IF;\n      END;\n    END;\n  END FOR;\nEND;",
+          "meta": {}
+        },
+        {
+          "timestamp": "02:05:23.501",
+          "level": "SUCCESS",
+          "message": "Job BigQuery concluído com sucesso! Job ID: 3520e495-6bf2-49fc-9bab-be7eb3ea58c4 | Tempo: 4262 ms | Bytes processados: 0",
+          "meta": {
+            "job_id": "3520e495-6bf2-49fc-9bab-be7eb3ea58c4",
+            "location": "US",
+            "elapsed_ms": 4262,
+            "total_bytes_processed": 0,
+            "total_bytes_billed": 0,
+            "num_dml_affected_rows": null,
+            "row_count": 0,
+            "statement_type": "SCRIPT"
+          }
+        }
+      ],
+      "preview_rows": []
+    },
+    {
+      "run_id": "run-1791412315916",
+      "step_id": "step_4_procedures",
+      "step_number": 4,
+      "step_title": "Deploy das Stored Procedures de Automação",
+      "status": "SUCCESS",
+      "executed_at": "2026-10-07T22:31:55Z",
+      "executed_by": "admin@felipechagas.altostrat.com",
+      "job_meta": {
+        "job_id": "cee250d0-3604-45dc-bda3-da13bfa5a9e7",
+        "location": "US",
+        "elapsed_ms": 4933,
+        "total_bytes_processed": 0,
+        "total_bytes_billed": 0,
+        "num_dml_affected_rows": null,
+        "row_count": 0,
+        "statement_type": "SCRIPT"
+      },
+      "logs": [
+        {
+          "timestamp": "22:31:50.982",
+          "level": "INFO",
+          "message": "Iniciando execução do [Deploy das Stored Procedures de Automação] no projeto 'ce-sap-latam-genai'...",
+          "meta": {}
+        },
+        {
+          "timestamp": "22:31:50.982",
+          "level": "INFO",
+          "message": "Credencial ativa: Google OAuth / ADC (admin@felipechagas.altostrat.com)",
+          "meta": {}
+        },
+        {
+          "timestamp": "22:31:50.982",
+          "level": "SQL",
+          "message": "Submetendo job ao motor BigQuery:\n-- PASSO 4: Deploy das Stored Procedures (Refresh Entitlements, Apply RLS e Revoke RLS)\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_refresh_sap_entitlements`()\nBEGIN\n  CREATE OR REPLACE TABLE `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n  CLUSTER BY user_email, org_field\n  AS\n  WITH active_users AS (\n    SELECT\n      LOWER(TRIM(a.smtp_addr)) AS user_email,\n      u.bname AS sap_uname\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.usr02` u\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.usr21` up\n      ON u.bname = up.bname\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.adr6` a\n      ON up.persnumber = a.persnumber AND up.addrnumber = a.addrnumber\n    WHERE (u.uflag IS NULL OR u.uflag = 0)\n      AND CURRENT_DATE() BETWEEN COALESCE(u.gltgv, DATE '1900-01-01') AND COALESCE(u.gltgb, DATE '9999-12-31')\n      AND a.smtp_addr IS NOT NULL\n  ),\n  user_roles_expanded AS (\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      COALESCE(comp.child_agr, r.agr_name) AS effective_role\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_users` r\n      ON au.sap_uname = r.uname\n    LEFT JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_agrs` comp\n      ON r.agr_name = comp.agr_name\n    WHERE CURRENT_DATE() BETWEEN COALESCE(r.from_dat, DATE '1900-01-01') AND COALESCE(r.to_dat, DATE '9999-12-31')\n  ),\n  raw_org_permissions AS (\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(REGEXP_REPLACE(a1252.varbl, r'^\\$', '')) AS org_field,\n      TRIM(a1252.low) AS val_low,\n      TRIM(a1252.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1252` a1252\n      ON ur.effective_role = a1252.agr_name\n    WHERE a1252.varbl IS NOT NULL AND a1252.varbl != ''\n    UNION ALL\n    SELECT\n      ur.user_email,\n      ur.sap_uname,\n      ur.effective_role,\n      LOWER(TRIM(a1251.field)) AS org_field,\n      TRIM(a1251.low) AS val_low,\n      TRIM(a1251.high) AS val_high\n    FROM user_roles_expanded ur\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.agr_1251` a1251\n      ON ur.effective_role = a1251.agr_name\n    WHERE LOWER(a1251.field) IN ('bukrs', 'werks', 'vkorg', 'ekorg', 'gsber', 'prctr')\n      AND NOT STARTS_WITH(TRIM(a1251.low), '$')\n    UNION ALL\n    SELECT\n      au.user_email,\n      au.sap_uname,\n      'PROFILE:SAP_ALL' AS effective_role,\n      '*' AS org_field,\n      '*' AS val_low,\n      CAST(NULL AS STRING) AS val_high\n    FROM active_users au\n    INNER JOIN `ce-sap-latam-genai.cortex7_sap_s4_raw.ust04` p\n      ON au.sap_uname = p.bname\n    WHERE UPPER(p.profile) IN ('SAP_ALL', 'SAP_NEW')\n  ),\n  master_bukrs AS (\n    SELECT DISTINCT bukrs AS org_value FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.t001`\n    UNION DISTINCT\n    SELECT DISTINCT bukrs FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf`\n  ),\n  expanded_values AS (\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      p.val_low AS org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low != '*' AND (p.val_high IS NULL OR p.val_high = '')\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      m.org_value, p.val_low, p.val_high,\n      FALSE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    JOIN master_bukrs m\n      ON p.org_field = 'bukrs' AND m.org_value BETWEEN p.val_low AND p.val_high\n    WHERE p.val_high IS NOT NULL AND p.val_high != ''\n    UNION ALL\n    SELECT\n      p.user_email, p.sap_uname, p.org_field,\n      CAST(NULL AS STRING) AS org_value, p.val_low, p.val_high,\n      TRUE AS is_all_access, p.effective_role\n    FROM raw_org_permissions p\n    WHERE p.val_low = '*' OR p.org_field = '*'\n  )\n  SELECT\n    user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access,\n    ARRAY_AGG(DISTINCT effective_role) AS source_roles,\n    CURRENT_TIMESTAMP() AS updated_at\n  FROM expanded_values\n  WHERE (org_value IS NOT NULL AND org_value != '') OR is_all_access = TRUE\n  GROUP BY user_email, sap_uname, org_field, org_value, val_low, val_high, is_all_access;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_apply_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING,\n  consumer_grantees STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  DECLARE formatted_grantees STRING;\n  SET exec_id = GENERATE_UUID();\n  SET formatted_grantees = TRIM(consumer_grantees);\n\n  IF NOT (STARTS_WITH(formatted_grantees, \"'\") OR STARTS_WITH(formatted_grantees, '\"')) THEN\n    SET formatted_grantees = FORMAT(\"'%s'\", formatted_grantees);\n  END IF;\n\n  FOR target IN (\n    SELECT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    GROUP BY table_name\n  )\n  DO\n    BEGIN\n      EXECUTE IMMEDIATE FORMAT(\"\"\"\n        CREATE OR REPLACE ROW ACCESS POLICY rap_auto_%s_%s\n        ON `%s.%s.%s`\n        GRANT TO (%s)\n        FILTER USING (\n          SESSION_USER() LIKE '%%@ce-sap-latam-genai.iam.gserviceaccount.com'\n          OR SESSION_USER() IN ('admin@felipechagas.altostrat.com')\n          OR TRUE IN (\n            SELECT is_all_access\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND (org_field = '%s' OR org_field = '*')\n              AND is_all_access = TRUE\n          )\n          OR %s IN (\n            SELECT org_value\n            FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_user_org_entitlements`\n            WHERE user_email = SESSION_USER()\n              AND org_field = '%s'\n          )\n        );\n      \"\"\",\n        LOWER(org_column_name), LOWER(target.table_name),\n        target_project, target_dataset, target.table_name,\n        formatted_grantees,\n        LOWER(org_column_name), LOWER(org_column_name), LOWER(org_column_name)\n      );\n\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'APPLIED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    EXCEPTION WHEN ERROR THEN\n      INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n      VALUES (\n        exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n        'FAILED', FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name)),\n        @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n      );\n    END;\n  END FOR;\nEND;\n\nCREATE OR REPLACE PROCEDURE `ce-sap-latam-genai.cortex7_sap_s4_security.sp_revoke_sap_rls`(\n  target_project STRING,\n  target_dataset STRING,\n  org_column_name STRING\n)\nBEGIN\n  DECLARE exec_id STRING;\n  SET exec_id = GENERATE_UUID();\n\n  FOR target IN (\n    SELECT DISTINCT table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_raw.INFORMATION_SCHEMA.COLUMNS`\n    WHERE LOWER(column_name) = LOWER(org_column_name)\n      AND table_schema = target_dataset\n      AND table_name NOT LIKE 'agr_%'\n      AND table_name NOT LIKE 'usr%'\n      AND table_name NOT LIKE 'adr%'\n      AND table_name NOT LIKE 'dd%'\n      AND table_name NOT LIKE 't001%'\n      AND table_name NOT LIKE 'sec_%'\n    UNION DISTINCT\n    SELECT DISTINCT target_table AS table_name\n    FROM `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n    WHERE target_project = target_project\n      AND target_dataset = target_dataset\n      AND LOWER(org_field) = LOWER(org_column_name)\n      AND action = 'APPLIED'\n  )\n  DO\n    BEGIN\n      DECLARE policy_name STRING;\n      SET policy_name = FORMAT('rap_auto_%s_%s', LOWER(org_column_name), LOWER(target.table_name));\n\n      BEGIN\n        EXECUTE IMMEDIATE FORMAT(\"\"\"\n          DROP ROW ACCESS POLICY IF EXISTS %s ON `%s.%s.%s`;\n        \"\"\", policy_name, target_project, target_dataset, target.table_name);\n\n        INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n        VALUES (\n          exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n          'REVOKED', policy_name, NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n        );\n      EXCEPTION WHEN ERROR THEN\n        IF CONTAINS_SUBSTR(LOWER(@@error.message), 'drop all') \n           OR CONTAINS_SUBSTR(LOWER(@@error.message), 'last row access policy') THEN\n          BEGIN\n            EXECUTE IMMEDIATE FORMAT(\"\"\"\n              DROP ALL ROW ACCESS POLICIES ON `%s.%s.%s`;\n            \"\"\", target_project, target_dataset, target.table_name);\n\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'REVOKED', FORMAT('%s (DROP ALL)', policy_name), NULL, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          EXCEPTION WHEN ERROR THEN\n            INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n            VALUES (\n              exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n              'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n            );\n          END;\n        ELSE\n          INSERT INTO `ce-sap-latam-genai.cortex7_sap_s4_security.sec_rls_audit_log`\n          VALUES (\n            exec_id, target_project, target_dataset, target.table_name, LOWER(org_column_name),\n            'FAILED_REVOKE', policy_name, @@error.message, SESSION_USER(), CURRENT_TIMESTAMP()\n          );\n        END IF;\n      END;\n    END;\n  END FOR;\nEND;",
+          "meta": {}
+        },
+        {
+          "timestamp": "22:31:55.916",
+          "level": "SUCCESS",
+          "message": "Job BigQuery concluído com sucesso! Job ID: cee250d0-3604-45dc-bda3-da13bfa5a9e7 | Tempo: 4933 ms | Bytes processados: 0",
+          "meta": {
+            "job_id": "cee250d0-3604-45dc-bda3-da13bfa5a9e7",
+            "location": "US",
+            "elapsed_ms": 4933,
+            "total_bytes_processed": 0,
+            "total_bytes_billed": 0,
+            "num_dml_affected_rows": null,
+            "row_count": 0,
+            "statement_type": "SCRIPT"
+          }
+        }
+      ],
+      "preview_rows": []
+    },
+    {
+      "run_id": "run-1791358379411",
+      "step_id": "step_1_prereq",
+      "step_number": 1,
+      "step_title": "Validação das 8 Tabelas CDC SAP & Identidade",
+      "status": "SUCCESS",
+      "executed_at": "2026-10-07T07:32:59Z",
+      "executed_by": "admin@felipechagas.altostrat.com",
+      "job_meta": {
+        "job_id": "6d8f0491-fb14-4b7a-9808-d00a547916ea",
+        "location": "US",
+        "elapsed_ms": 1703,
+        "total_bytes_processed": 0,
+        "total_bytes_billed": 0,
+        "num_dml_affected_rows": null,
+        "row_count": 8,
+        "statement_type": "SELECT"
+      },
+      "logs": [
+        {
+          "timestamp": "07:32:57.420",
+          "level": "INFO",
+          "message": "Iniciando execução do [Validação das 8 Tabelas CDC SAP & Identidade] no projeto 'ce-sap-latam-genai'...",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:57.420",
+          "level": "INFO",
+          "message": "Credencial ativa: Google OAuth / ADC (admin@felipechagas.altostrat.com)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:57.420",
+          "level": "SQL",
+          "message": "Submetendo job ao motor BigQuery:\n-- PASSO 1: Diagnóstico das 8 Tabelas de Segurança SAP e Cobertura de Identidade (ADR6)\nSELECT \n  table_id AS table_name,\n  row_count,\n  ROUND(size_bytes / POW(1024, 2), 2) AS size_mb,\n  TIMESTAMP_MILLIS(last_modified_time) AS last_modified\nFROM `ce-sap-latam-genai.cortex7_sap_s4_raw.__TABLES__`\nWHERE table_id IN ('usr02', 'usr21', 'adr6', 'agr_users', 'agr_agrs', 'agr_1252', 'agr_1251', 'ust04')\nORDER BY table_name;",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "SUCCESS",
+          "message": "Job BigQuery concluído com sucesso! Job ID: 6d8f0491-fb14-4b7a-9808-d00a547916ea | Tempo: 1703 ms | Bytes processados: 0",
+          "meta": {
+            "job_id": "6d8f0491-fb14-4b7a-9808-d00a547916ea",
+            "location": "US",
+            "elapsed_ms": 1703,
+            "total_bytes_processed": 0,
+            "total_bytes_billed": 0,
+            "num_dml_affected_rows": null,
+            "row_count": 8,
+            "statement_type": "SELECT"
+          }
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "INFO",
+          "message": "Tabelas de segurança verificadas: 8/8 encontradas no dataset 'cortex7_sap_s4_raw'.",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela adr6: 604 linhas (0.05 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela agr_1251: 594,181 linhas (55.58 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela agr_1252: 8,692 linhas (0.46 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela agr_agrs: 1,910 linhas (0.11 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela agr_users: 1,611 linhas (0.14 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela usr02: 76 linhas (0.03 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela usr21: 76 linhas (0.01 MB)",
+          "meta": {}
+        },
+        {
+          "timestamp": "07:32:59.411",
+          "level": "DATA",
+          "message": "• Tabela ust04: 3,849 linhas (0.13 MB)",
+          "meta": {}
+        }
+      ],
+      "preview_rows": [
+        {
+          "table_name": "adr6",
+          "row_count": 604,
+          "size_mb": 0.05,
+          "last_modified": "2026-09-28T14:10:29.985000+00:00"
+        },
+        {
+          "table_name": "agr_1251",
+          "row_count": 594181,
+          "size_mb": 55.58,
+          "last_modified": "2026-09-24T23:12:19.780000+00:00"
+        },
+        {
+          "table_name": "agr_1252",
+          "row_count": 8692,
+          "size_mb": 0.46,
+          "last_modified": "2026-09-28T14:10:20.175000+00:00"
+        },
+        {
+          "table_name": "agr_agrs",
+          "row_count": 1910,
+          "size_mb": 0.11,
+          "last_modified": "2026-09-24T14:38:36.842000+00:00"
+        },
+        {
+          "table_name": "agr_users",
+          "row_count": 1611,
+          "size_mb": 0.14,
+          "last_modified": "2026-09-24T23:14:18.862000+00:00"
+        },
+        {
+          "table_name": "usr02",
+          "row_count": 76,
+          "size_mb": 0.03,
+          "last_modified": "2026-10-07T07:32:37.080000+00:00"
+        },
+        {
+          "table_name": "usr21",
+          "row_count": 76,
+          "size_mb": 0.01,
+          "last_modified": "2026-09-24T23:10:19.573000+00:00"
+        },
+        {
+          "table_name": "ust04",
+          "row_count": 3849,
+          "size_mb": 0.13,
+          "last_modified": "2026-09-24T23:14:39.740000+00:00"
+        }
+      ]
+    }
+  ],
+  "custom_group_mappings": [
+    {
+      "id": "grp-1",
+      "principal": "group:gcp-bi-analysts@copel.com",
+      "principal_type": "GROUP",
+      "description": "Analistas de BI e Controladoria Corporativa",
+      "sap_role_binding": "Z_SAP_AUTH_FI",
+      "org_field": "bukrs",
+      "org_values": [
+        "1010",
+        "1710"
+      ],
+      "is_all_access": false,
+      "updated_at": "2026-10-01T10:00:00Z"
+    },
+    {
+      "id": "grp-2",
+      "principal": "group:gcp-sap-executives@copel.com",
+      "principal_type": "GROUP",
+      "description": "Diretoria Executiva e Auditoria Interna",
+      "sap_role_binding": "PROFILE:SAP_ALL",
+      "org_field": "*",
+      "org_values": [
+        "*"
+      ],
+      "is_all_access": true,
+      "updated_at": "2026-10-01T10:00:00Z"
+    },
+    {
+      "id": "grp-3",
+      "principal": "group:gcp-suprimentos-mm@copel.com",
+      "principal_type": "GROUP",
+      "description": "Equipe de Suprimentos e Logística (MM/SD)",
+      "sap_role_binding": "Z_MM_WERKS_SUL",
+      "org_field": "werks",
+      "org_values": [
+        "1010",
+        "1020",
+        "1710"
+      ],
+      "is_all_access": false,
+      "updated_at": "2026-10-02T14:30:00Z"
+    }
+  ],
+  "app_roles": [
+    {
+      "id": "SUPER_ADMIN",
+      "name": "Super Administrador (Cloud & SAP Security Admin)",
+      "description": "Acesso irrestrito à configuração de conexões BigQuery, execução do Setup automatizado, gestão de matrizes RLS e administração de usuários da aplicação.",
+      "badge_color": "blue",
+      "is_system": true,
+      "permissions": {
+        "can_manage_connections": true,
+        "can_run_setup": true,
+        "can_view_roles": true,
+        "can_view_matrices": true,
+        "can_manage_entitlements": true,
+        "can_apply_rls": true,
+        "can_revoke_rls": true,
+        "can_manage_app_users": true
+      }
+    },
+    {
+      "id": "SECURITY_OPERATOR",
+      "name": "Operador de Governança e Segurança SAP",
+      "description": "Opera o dia a dia (Day-2): sincroniza entitlements, visualiza roles e matrizes, e aplica/atualiza políticas de RLS nas tabelas.",
+      "badge_color": "green",
+      "is_system": true,
+      "permissions": {
+        "can_manage_connections": false,
+        "can_run_setup": true,
+        "can_view_roles": true,
+        "can_view_matrices": true,
+        "can_manage_entitlements": true,
+        "can_apply_rls": true,
+        "can_revoke_rls": false,
+        "can_manage_app_users": false
+      }
+    },
+    {
+      "id": "DATA_ENGINEER",
+      "name": "Engenheiro de Dados / SRE BigQuery",
+      "description": "Configura conexões, executa o setup técnico e monitora clustering/FinOps, sem alterar mapeamentos funcionais de usuários.",
+      "badge_color": "amber",
+      "is_system": true,
+      "permissions": {
+        "can_manage_connections": true,
+        "can_run_setup": true,
+        "can_view_roles": true,
+        "can_view_matrices": true,
+        "can_manage_entitlements": false,
+        "can_apply_rls": true,
+        "can_revoke_rls": true,
+        "can_manage_app_users": false
+      }
+    },
+    {
+      "id": "COMPLIANCE_AUDITOR",
+      "name": "Auditor de Compliance & SOX (Somente Leitura)",
+      "description": "Inspeciona todas as roles SAP, matrizes de acesso por usuário/grupo, políticas de RLS ativas e logs de auditoria, sem permissão de escrita.",
+      "badge_color": "gray",
+      "is_system": true,
+      "permissions": {
+        "can_manage_connections": false,
+        "can_run_setup": false,
+        "can_view_roles": true,
+        "can_view_matrices": true,
+        "can_manage_entitlements": false,
+        "can_apply_rls": false,
+        "can_revoke_rls": false,
+        "can_manage_app_users": false
+      }
+    }
+  ],
+  "app_users": [
+    {
+      "id": "usr-1",
+      "email": "admin@felipechagas.altostrat.com",
+      "name": "Felipe Chagas (Cloud Admin)",
+      "sap_uname": "SAPADM",
+      "department": "Arquitetura Cloud & Dados",
+      "role_id": "SUPER_ADMIN",
+      "status": "ACTIVE",
+      "last_login": "2026-10-07T04:05:00Z"
+    },
+    {
+      "id": "usr-2",
+      "email": "fchagas@felipechagas.altostrat.com",
+      "name": "Felipe Chagas (Especialista SAP FI)",
+      "sap_uname": "SAPFI",
+      "department": "Governança SAP / Finanças",
+      "role_id": "SECURITY_OPERATOR",
+      "status": "ACTIVE",
+      "last_login": "2026-10-06T18:20:00Z"
+    },
+    {
+      "id": "usr-3",
+      "email": "engenharia.dados@copel.com",
+      "name": "Time Engenharia de Dados Copel",
+      "sap_uname": "BTC_DATA",
+      "department": "Engenharia de Plataforma",
+      "role_id": "DATA_ENGINEER",
+      "status": "ACTIVE",
+      "last_login": "2026-10-06T15:10:00Z"
+    },
+    {
+      "id": "usr-4",
+      "email": "auditoria.sox@copel.com",
+      "name": "Auditoria Interna & Compliance SOX",
+      "sap_uname": "AUDITOR01",
+      "department": "Riscos e Compliance",
+      "role_id": "COMPLIANCE_AUDITOR",
+      "status": "ACTIVE",
+      "last_login": "2026-10-05T11:45:00Z"
+    }
+  ],
+  "current_app_user_email": "admin@felipechagas.altostrat.com",
+  "app_settings": {
+    "auto_refresh_schedule": "0 * * * *",
+    "auto_refresh_enabled": true,
+    "enforce_clustering_check": true,
+    "sanitize_dollar_vars": true,
+    "require_approval_for_revoke": false,
+    "audit_retention_days": 365
+  },
+  "app_audit_logs": [
+    {
+      "id": "aud-1791895164270",
+      "timestamp": "2026-10-13T12:39:24Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791493187394",
+      "timestamp": "2026-10-08T20:59:47Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791468904078",
+      "timestamp": "2026-10-08T14:15:04Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791467271758",
+      "timestamp": "2026-10-08T13:47:51Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SIMULADOR RLS",
+      "action": "SIMULATE_USER_ACCESS",
+      "details": "Simulação executada para 'fchagas@felipechagas.altostrat.com' na tabela 'bkpf' (bukrs).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791466738799",
+      "timestamp": "2026-10-08T13:38:58Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791462768925",
+      "timestamp": "2026-10-08T12:32:48Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791462768910",
+      "timestamp": "2026-10-08T12:32:48Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791427479797",
+      "timestamp": "2026-10-08T02:44:39Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791427479797",
+      "timestamp": "2026-10-08T02:44:39Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791426816637",
+      "timestamp": "2026-10-08T02:33:36Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "REVOKE_ALL_ORG_FIELD",
+      "details": "Rollback em lote executado para o campo organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791426118961",
+      "timestamp": "2026-10-08T02:21:58Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791425692324",
+      "timestamp": "2026-10-08T02:14:52Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791425664299",
+      "timestamp": "2026-10-08T02:14:24Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_ALL_ORG_FIELD",
+      "details": "Aplicação massiva de RLS executada para o nível organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791425513961",
+      "timestamp": "2026-10-08T02:11:53Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_RLS",
+      "details": "Política 'rap_auto_bukrs_bkpf' (APPLY) na tabela `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf` (Job: e35112d6-54d4-415a-b717-c6414223141d).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791425500148",
+      "timestamp": "2026-10-08T02:11:40Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SETUP",
+      "action": "EXECUTE_STEP_4_PROCEDURES",
+      "details": "Passo 'Deploy das Stored Procedures de Automação' executado com sucesso (Job: 6880b9a1-3c5b-466d-8667-1733f809bc47, 4584 ms).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791425123503",
+      "timestamp": "2026-10-08T02:05:23Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SETUP",
+      "action": "EXECUTE_STEP_4_PROCEDURES",
+      "details": "Passo 'Deploy das Stored Procedures de Automação' executado com sucesso (Job: 3520e495-6bf2-49fc-9bab-be7eb3ea58c4, 4262 ms).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424735536",
+      "timestamp": "2026-10-08T01:58:55Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424710609",
+      "timestamp": "2026-10-08T01:58:30Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424679294",
+      "timestamp": "2026-10-08T01:57:59Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "REVOKE_ALL_ORG_FIELD",
+      "details": "Rollback em lote executado para o campo organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424572082",
+      "timestamp": "2026-10-08T01:56:12Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_ALL_ORG_FIELD",
+      "details": "Aplicação massiva de RLS executada para o nível organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424505076",
+      "timestamp": "2026-10-08T01:55:05Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_ALL_ORG_FIELD",
+      "details": "Aplicação massiva de RLS executada para o nível organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424368077",
+      "timestamp": "2026-10-08T01:52:48Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_RLS",
+      "details": "Política 'rap_auto_bukrs_bkpf' (APPLY) na tabela `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf` (Job: 62a0cdf8-e8b6-40bc-a79e-6f03af379fd7).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791424329118",
+      "timestamp": "2026-10-08T01:52:09Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "REVOKE_RLS",
+      "details": "Política 'rap_auto_bukrs_bkpf' (REVOKE) na tabela `ce-sap-latam-genai.cortex7_sap_s4_raw.bkpf` (Job: eb101131-2d2d-4076-b1a8-4ba7cd77a4da).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423609139",
+      "timestamp": "2026-10-08T01:40:09Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423607589",
+      "timestamp": "2026-10-08T01:40:07Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423591340",
+      "timestamp": "2026-10-08T01:39:51Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423584469",
+      "timestamp": "2026-10-08T01:39:44Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "SAVE_CONNECTION",
+      "details": "Conexão 'Copel SAP S/4HANA & BigQuery (Ativo)' (oauth_adc) salva para projeto ce-sap-latam-genai.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423471996",
+      "timestamp": "2026-10-08T01:37:51Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791423471955",
+      "timestamp": "2026-10-08T01:37:51Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791420951167",
+      "timestamp": "2026-10-08T00:55:51Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791419489967",
+      "timestamp": "2026-10-08T00:31:29Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791412795604",
+      "timestamp": "2026-10-07T22:39:55Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "REVOKE_ALL_ORG_FIELD",
+      "details": "Rollback em lote executado para o campo organizacional 'bukrs' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791412323914",
+      "timestamp": "2026-10-07T22:32:03Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "REVOKE_ALL_ORG_FIELD",
+      "details": "Rollback em lote executado para o campo organizacional 'fakefield_test' no dataset `ce-sap-latam-genai.cortex7_sap_s4_raw`.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791412315918",
+      "timestamp": "2026-10-07T22:31:55Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SETUP",
+      "action": "EXECUTE_STEP_4_PROCEDURES",
+      "details": "Passo 'Deploy das Stored Procedures de Automação' executado com sucesso (Job: cee250d0-3604-45dc-bda3-da13bfa5a9e7, 4933 ms).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791412088807",
+      "timestamp": "2026-10-07T22:28:08Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791412088791",
+      "timestamp": "2026-10-07T22:28:08Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791408999641",
+      "timestamp": "2026-10-07T21:36:39Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791408998970",
+      "timestamp": "2026-10-07T21:36:38Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791407380626",
+      "timestamp": "2026-10-07T21:09:40Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791387037418",
+      "timestamp": "2026-10-07T15:30:37Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791382364433",
+      "timestamp": "2026-10-07T14:12:44Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791379460448",
+      "timestamp": "2026-10-07T13:24:20Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791378870199",
+      "timestamp": "2026-10-07T13:14:30Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372819015",
+      "timestamp": "2026-10-07T11:33:39Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372818783",
+      "timestamp": "2026-10-07T11:33:38Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372804615",
+      "timestamp": "2026-10-07T11:33:24Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372797543",
+      "timestamp": "2026-10-07T11:33:17Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "DELETE_CONNECTION",
+      "details": "Conexão 'Arquitetura de Referência SDD (sap_governance)' (ce-sap-latam-genai.sap_governance) excluída.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372795411",
+      "timestamp": "2026-10-07T11:33:15Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Arquitetura de Referência SDD (sap_governance)' (ce-sap-latam-genai.sap_governance).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791372206067",
+      "timestamp": "2026-10-07T11:23:26Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791371610105",
+      "timestamp": "2026-10-07T11:13:30Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791371424994",
+      "timestamp": "2026-10-07T11:10:24Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791371418560",
+      "timestamp": "2026-10-07T11:10:18Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Copel SAP S/4HANA & BigQuery (Ativo)' (ce-sap-latam-genai.cortex7_sap_s4_security).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791371417578",
+      "timestamp": "2026-10-07T11:10:17Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Arquitetura de Referência SDD (sap_governance)' (ce-sap-latam-genai.sap_governance).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791370668331",
+      "timestamp": "2026-10-07T10:57:48Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "APPLY_RLS",
+      "details": "Política 'rap_auto_bukrs_ekpo' (APPLY) na tabela `ce-sap-latam-genai.cortex7_sap_s4_raw.ekpo` (Job: 9b82d19f-0db3-4cf9-a719-dd1ff2c57a0d).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791370522435",
+      "timestamp": "2026-10-07T10:55:22Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SIMULADOR RLS",
+      "action": "SIMULATE_USER_ACCESS",
+      "details": "Simulação executada para 'fchagas@felipechagas.altostrat.com' na tabela 'bkpf' (bukrs).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791370502912",
+      "timestamp": "2026-10-07T10:55:02Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Copel SAP S/4HANA & BigQuery (Ativo)' (ce-sap-latam-genai.cortex7_sap_s4_security).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791370344321",
+      "timestamp": "2026-10-07T10:52:24Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791370309912",
+      "timestamp": "2026-10-07T10:51:49Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791369631074",
+      "timestamp": "2026-10-07T10:40:31Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791368820487",
+      "timestamp": "2026-10-07T10:27:00Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Arquitetura de Referência SDD (sap_governance)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791368749373",
+      "timestamp": "2026-10-07T10:25:49Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Arquitetura de Referência SDD (sap_governance)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791368740382",
+      "timestamp": "2026-10-07T10:25:40Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Arquitetura de Referência SDD (sap_governance)' (ce-sap-latam-genai.sap_governance).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791368698543",
+      "timestamp": "2026-10-07T10:24:58Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791367705233",
+      "timestamp": "2026-10-07T10:08:25Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791367349231",
+      "timestamp": "2026-10-07T10:02:29Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Falha ao testar conexão 'Copel SAP S/4HANA & BigQuery (Ativo)': Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+      "status": "FAILED"
+    },
+    {
+      "id": "aud-1791366176961",
+      "timestamp": "2026-10-07T09:42:56Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791365997102",
+      "timestamp": "2026-10-07T09:39:57Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791365923527",
+      "timestamp": "2026-10-07T09:38:43Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "GEMINI CHAT",
+      "action": "ASK_QUESTION",
+      "details": "Pergunta enviada ao Assistente Gemini: '[Context: Módulo ativo: setup | Projeto: ce-sap-latam-genai.cortex7_sap_s4_security] Quais usuários possuem acesso à emp'",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791365857519",
+      "timestamp": "2026-10-07T09:37:37Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791365199273",
+      "timestamp": "2026-10-07T09:26:39Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363832722",
+      "timestamp": "2026-10-07T09:03:52Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Copel SAP S/4HANA & BigQuery (Ativo)' (ce-sap-latam-genai.cortex7_sap_s4_security).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363830552",
+      "timestamp": "2026-10-07T09:03:50Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "ACTIVATE_CONNECTION",
+      "details": "Conexão ativa alterada para 'Arquitetura de Referência SDD (sap_governance)' (ce-sap-latam-genai.sap_governance).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363823776",
+      "timestamp": "2026-10-07T09:03:43Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363732724",
+      "timestamp": "2026-10-07T09:02:12Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "GEMINI CHAT",
+      "action": "ASK_QUESTION",
+      "details": "Pergunta enviada ao Assistente Gemini: 'E quais tabelas no dataset raw já têm política RLS ativa?'",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363727355",
+      "timestamp": "2026-10-07T09:02:07Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "GEMINI CHAT",
+      "action": "ASK_QUESTION",
+      "details": "Pergunta enviada ao Assistente Gemini: 'Quais usuários possuem perfil SAP_ALL ou acesso irrestrito (*)?'",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791363682214",
+      "timestamp": "2026-10-07T09:01:22Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "GEMINI CHAT",
+      "action": "ASK_QUESTION",
+      "details": "Pergunta enviada ao Assistente Gemini: 'Quais usuários possuem perfil SAP_ALL ou acesso irrestrito (*)?'",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791358414981",
+      "timestamp": "2026-10-07T07:33:34Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SIMULADOR RLS",
+      "action": "SIMULATE_USER_ACCESS",
+      "details": "Simulação executada para 'fchagas@felipechagas.altostrat.com' na tabela 'bkpf' (bukrs).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791358379413",
+      "timestamp": "2026-10-07T07:32:59Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SETUP",
+      "action": "EXECUTE_STEP_1_PREREQ",
+      "details": "Passo 'Validação das 8 Tabelas CDC SAP & Identidade' executado com sucesso (Job: 6d8f0491-fb14-4b7a-9808-d00a547916ea, 1703 ms).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-1791358377064",
+      "timestamp": "2026-10-07T07:32:57Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "TEST_CONNECTION",
+      "details": "Diagnóstico BigQuery concluído com sucesso em ce-sap-latam-genai (Google OAuth / ADC (admin@felipechagas.altostrat.com)).",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-101",
+      "timestamp": "2026-10-07T03:55:00Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "CONEXÕES",
+      "action": "CONNECTION_VERIFIED",
+      "details": "Conexão validada com ce-sap-latam-genai (datasets cortex7_sap_s4_raw e cortex7_sap_s4_security) via OAuth ADC.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-102",
+      "timestamp": "2026-09-28T14:10:28Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "SETUP & ENTITLEMENTS",
+      "action": "REFRESH_ENTITLEMENTS",
+      "details": "Procedure sp_refresh_sap_entitlements executada em cortex7_sap_s4_security.",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "aud-103",
+      "timestamp": "2026-09-24T23:52:49Z",
+      "actor": "admin@felipechagas.altostrat.com",
+      "module": "RLS MATRIX",
+      "action": "BATCH_APPLY_RLS",
+      "details": "Aplicação em lote de Row Access Policies (bukrs) no dataset cortex7_sap_s4_raw.",
+      "status": "SUCCESS"
+    }
+  ]
+}
