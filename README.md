@@ -1,4 +1,4 @@
-# Copel — SAP S/4HANA to Google Cloud BigQuery RLS Governance Console
+# SAP S/4HANA to Google Cloud BigQuery RLS Governance Console
 
 Console unificado e automatizado para governança de acesso e transposição do modelo de segurança transacional do **SAP S/4HANA / ECC (PFCG)** para o **Google Cloud BigQuery** utilizando **Row-Level Security (RLS)** nativo (`ROW ACCESS POLICY`).
 
