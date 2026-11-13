@@ -61,7 +61,7 @@ flowchart TD
         PROC["Stored Procedures:<br/>sp_refresh_sap_entitlements<br/>sp_apply_sap_rls<br/>sp_revoke_sap_rls"]
     end
 
-    subgraph App_Platform["Console de Governança Copel"]
+    subgraph App_Platform["Console de Governança"]
         UI["Frontend React 18 + Vite + Tailwind (GCP Look & Feel)"]
         API["Backend FastAPI (Python 3.11)"]
         AI_CHAT["Gemini Data Analytics Chat (SSE Stream)"]
@@ -259,7 +259,7 @@ Você também pode customizar variáveis de ambiente inline:
 ```bash
 BQ_PROJECT_ID="ce-sap-latam-genai" \
 GCP_REGION="us-central1" \
-SERVICE_NAME="copel-sap-bq-rls-console" \
+SERVICE_NAME="sap-bq-rls-console" \
 BQ_RAW_DATASET="cortex7_sap_s4_raw" \
 BQ_GOVERNANCE_DATASET="cortex7_sap_s4_security" \
 ./deploy_cloud_run.sh
@@ -334,10 +334,10 @@ O operador logado pode ser facilmente alternado na barra superior do console par
 ## 📖 Documentação de Referência
 
 Para detalhes aprofundados sobre a especificação técnica e design da solução, consulte:
-- [System Design Document (SDD)](file:///Users/felipechagas/Repository/customers/copel/spec/sdd-sap-authorization-bigquery.md): Especificação completa da transposição de autorizações SAP para BigQuery RLS.
+- [System Design Document (SDD)](file:///Users/felipechagas/Repository/customers/spec/sdd-sap-authorization-bigquery.md): Especificação completa da transposição de autorizações SAP para BigQuery RLS.
 - [Google Cloud BigQuery Row-Level Security Documentation](https://cloud.google.com/bigquery/docs/row-level-security-intro)
 - [SAP Note 101052 - Authorization Check in Reporting](https://me.sap.com)
 
 ---
 
-**Desenvolvido para Governança de Dados Corporativos — Copel & Google Cloud**
+**Desenvolvido para Governança de Dados Corporativos — Google Cloud**
